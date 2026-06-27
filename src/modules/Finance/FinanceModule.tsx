@@ -166,7 +166,7 @@ export default function FinanceModule() {
 
     const max = Math.max(...pointsToDraw) * 1.1 || 1000;
     const min = Math.min(...pointsToDraw) * 0.9 || 0;
-    const range = max - min;
+    const range = (max - min) || 1;
 
     // Convert to SVG points
     const stepX = CHART_WIDTH / (pointsToDraw.length - 1);

@@ -152,7 +152,7 @@ export default function KnowledgeModule() {
       book_id: selectedBook.id,
       question: cardQuestion.trim(),
       answer: cardAnswer.trim(),
-      difficulty: 1, // Start at interval index 0 (Day 1)
+      difficulty: 0, // Start at interval index 0 (Day 1)
       review_date: new Date().toISOString().slice(0, 10), // Review today immediately
     };
 

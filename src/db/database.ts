@@ -429,11 +429,11 @@ export const database = {
     const habits = await this.getAll<Habit>(KEYS.HABITS, 'habits');
     if (habits.length === 0) {
       const defaultHabits: Habit[] = [
-        { id: generateUUID(), title: 'Sleep 8 Hours', icon: 'moon', frequency: 'daily', target: '8' },
-        { id: generateUUID(), title: 'Drink 3L Water', icon: 'droplet', frequency: 'daily', target: '3' },
-        { id: generateUUID(), title: 'Meditate 15m', icon: 'eye', frequency: 'daily', target: '15' },
-        { id: generateUUID(), title: 'Read 30 minutes', icon: 'book', frequency: 'daily', target: '30' },
-        { id: generateUUID(), title: 'Workout', icon: 'activity', frequency: 'daily', target: '1' }
+        { id: generateUUID(), title: 'Sleep 8 Hours', icon: '🌙', frequency: 'daily', target: '8' },
+        { id: generateUUID(), title: 'Drink 3L Water', icon: '💧', frequency: 'daily', target: '3' },
+        { id: generateUUID(), title: 'Meditate 15m', icon: '🧘', frequency: 'daily', target: '15' },
+        { id: generateUUID(), title: 'Read 30 minutes', icon: '📖', frequency: 'daily', target: '30' },
+        { id: generateUUID(), title: 'Workout', icon: '🏋️', frequency: 'daily', target: '1' }
       ];
       for (const h of defaultHabits) {
         await this.saveHabit(h);
