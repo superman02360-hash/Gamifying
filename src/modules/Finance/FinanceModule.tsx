@@ -10,6 +10,7 @@ import {
   Modal,
   Dimensions,
   Alert,
+  Image,
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Text as SvgText, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
@@ -17,13 +18,10 @@ import { database, Transaction, Account, Asset, generateUUID } from '../../db/da
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
-const CHART_WIDTH = width - 56;
-const CHART_HEIGHT = 160;
+const CHART_WIDTH = width - 48;
+const CHART_HEIGHT = 90;
 
-const CATEGORIES = [
-  'Food', 'Transportation', 'Bills', 'Rent', 'Entertainment',
-  'Education', 'Investment', 'Salary', 'Gift', 'Medical', 'Other'
-];
+const CATEGORIES = ['All', 'Entertainment', 'Subscription', 'Food', 'Transportation'];
 const PAYMENT_METHODS = ['Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'UPI'];
 
 interface Goal {
@@ -34,51 +32,69 @@ interface Goal {
   deadline: string;
 }
 
-interface Subscription {
-  id: string;
-  name: string;
-  cost: number;
-  renewal: string;
-}
+// Brand SVG Icons
+const PayPalIcon = () => (
+  <Svg width="38" height="38" viewBox="0 0 36 36" fill="none">
+    <Circle cx="18" cy="18" r="18" fill="#F0F4FE" />
+    <Path d="M15 11h5.5c1.4 0 2.5.3 3.1 1 .6.6.8 1.5.8 2.5 0 1.5-.6 2.8-1.8 3.5-1.2.7-2.6 1-4.2 1H16.5l-1.5 6h-2.5l3-12z" fill="#003087" />
+    <Path d="M17.5 13.5h5.5c1.4 0 2.5.3 3.1 1 .6.6.8 1.5.8 2.5 0 1.5-.6 2.8-1.8 3.5-1.2.7-2.6 1-4.2 1H19l-1.5 6h-2.5l3-12z" fill="#0079C1" opacity="0.85" />
+  </Svg>
+);
 
-interface Loan {
-  id: string;
-  name: string;
-  principal: number;
-  rate: number;
-  termMonths: number;
-  emi: number;
-}
+const SpotifyIcon = () => (
+  <Svg width="38" height="38" viewBox="0 0 36 36" fill="none">
+    <Circle cx="18" cy="18" r="18" fill="#E8F9EE" />
+    <Circle cx="18" cy="18" r="10" fill="#1DB954" />
+    <Path d="M14 16c2-1 4.5-1 6.5 0M13.5 18.5c1.8-.8 3.8-.8 5.6 0M14.5 21c1.2-.6 2.6-.6 3.8 0" stroke="#FFF" strokeWidth="1.2" strokeLinecap="round" />
+  </Svg>
+);
+
+const ClaudeIcon = () => (
+  <Svg width="38" height="38" viewBox="0 0 36 36" fill="none">
+    <Circle cx="18" cy="18" r="18" fill="#FFF2EB" />
+    <Path d="M18 10v16M10 18h16M12.5 12.5l11 11M12.5 23.5l11-11" stroke="#D97706" strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+
+const DefaultTransIcon = (cat: string) => {
+  let emoji = '💰';
+  if (cat === 'Food') emoji = '🍕';
+  if (cat === 'Transportation') emoji = '🚗';
+  if (cat === 'Entertainment') emoji = '🎬';
+  return (
+    <View style={styles.defaultIconBox}>
+      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+    </View>
+  );
+};
 
 export default function FinanceModule() {
   const { colors } = useTheme();
 
-  // Tab State
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'transactions' | 'goals' | 'health'>('dashboard');
+  // Active Tab View
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'goals' | 'health'>('dashboard');
 
-  // Core Database State
+  // Transactions category filter chip
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
+
+  // Core Database lists
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-  // Sub-module State (Stored in AsyncStorage)
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
 
   // Modals
-  const [transModalVisible, setTransModalVisible] = useState(false);
-  const [accountModalVisible, setAccountModalVisible] = useState(false);
-  const [goalModalVisible, setGoalModalVisible] = useState(false);
-  const [transferModalVisible, setTransferModalVisible] = useState(false);
+  const [addTransModal, setAddTransModal] = useState(false);
+  const [addAccModal, setAddAccModal] = useState(false);
+  const [addGoalModal, setAddGoalModal] = useState(false);
+  const [transferModal, setTransferModal] = useState(false);
 
   // Forms
   const [amount, setAmount] = useState('');
   const [transType, setTransType] = useState<'income' | 'expense'>('expense');
-  const [category, setCategory] = useState(CATEGORIES[0]);
-  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]);
+  const [category, setCategory] = useState('Food');
+  const [paymentMethod, setPaymentMethod] = useState('Debit Card');
   const [notes, setNotes] = useState('');
-  const [tags, setTags] = useState('');
   const [accountId, setAccountId] = useState('');
 
   // Transfer Form
@@ -94,68 +110,81 @@ export default function FinanceModule() {
   // Goal Form
   const [goalName, setGoalName] = useState('');
   const [goalTarget, setGoalTarget] = useState('');
-  const [goalDeadline, setGoalDeadline] = useState('');
-
-  // AI Insights
-  const [insights, setInsights] = useState<string[]>([
-    "Your emergency fund is currently covering 5.8 months of expenses.",
-    "Food spending is 24% higher than last week. Consider cooking at home tonight.",
-    "Unused ChatGPT subscription detected ($20/mo). Tap Subscriptions to cancel.",
-    "Kudos! Your savings rate is at 32%, well ahead of your monthly wealth goal."
-  ]);
 
   // Load Data
   const loadData = async () => {
     try {
-      const accList = await database.getAccounts();
-      const assList = await database.getAssets();
-      const transList = await database.getTransactions();
-      
+      let accList = await database.getAccounts();
+      let transList = await database.getTransactions();
+      let assList = await database.getAssets();
+
+      // Seed default transactions if empty to match screenshots
+      if (transList.length === 0) {
+        const seedTrans: Transaction[] = [
+          {
+            id: 't-1',
+            date: '2026-05-27',
+            amount: 23.12,
+            type: 'expense',
+            category: 'Food',
+            payment_method: 'Debit Card',
+            notes: 'Tartine Bakery Payment'
+          },
+          {
+            id: 't-2',
+            date: '2026-05-23',
+            amount: 18.00,
+            type: 'expense',
+            category: 'Subscription',
+            payment_method: 'Credit Card',
+            notes: 'Spotify Yearly Subscription'
+          },
+          {
+            id: 't-3',
+            date: '2026-05-07',
+            amount: 96.00,
+            type: 'expense',
+            category: 'Subscription',
+            payment_method: 'Bank Transfer',
+            notes: 'Claude monthly Subscription'
+          }
+        ];
+        for (const t of seedTrans) {
+          await database.saveTransaction(t);
+        }
+        transList = await database.getTransactions();
+      }
+
+      if (accList.length === 0) {
+        const seedAccounts: Account[] = [
+          { id: 'acc-1', name: 'Chase Bank', balance: 5420.00, currency: 'USD' },
+          { id: 'acc-2', name: 'Visa Credit', balance: -850.00, currency: 'USD' }
+        ];
+        for (const a of seedAccounts) {
+          await database.saveAccount(a);
+        }
+        accList = await database.getAccounts();
+      }
+
       setAccounts(accList);
       setAssets(assList);
       setTransactions(transList.sort((a, b) => b.date.localeCompare(a.date)));
 
-      if (accList.length > 0 && !accountId) {
+      if (accList.length > 0) {
         setAccountId(accList[0].id);
       }
 
-      // Load Sub-module local data
-      const storedGoals = await AsyncStorage.getItem('@LifeOS:goals');
+      // Load goals
+      const storedGoals = await AsyncStorage.getItem('@LifeOS:goals_v2');
       if (storedGoals) {
         setGoals(JSON.parse(storedGoals));
       } else {
-        const defaultGoals: Goal[] = [
-          { id: '1', name: 'Emergency Fund', target: 15000, current: 8500, deadline: '2026-12-31' },
-          { id: '2', name: 'New Laptop', target: 2000, current: 650, deadline: '2026-09-30' }
+        const defaultGoals = [
+          { id: '1', name: 'Emergency Fund', target: 15000, current: 8500, deadline: '2026-12-31' }
         ];
-        await AsyncStorage.setItem('@LifeOS:goals', JSON.stringify(defaultGoals));
+        await AsyncStorage.setItem('@LifeOS:goals_v2', JSON.stringify(defaultGoals));
         setGoals(defaultGoals);
       }
-
-      const storedSubs = await AsyncStorage.getItem('@LifeOS:subscriptions');
-      if (storedSubs) {
-        setSubscriptions(JSON.parse(storedSubs));
-      } else {
-        const defaultSubs: Subscription[] = [
-          { id: '1', name: 'Netflix Premium', cost: 15.49, renewal: '2026-07-15' },
-          { id: '2', name: 'Spotify Duo', cost: 14.99, renewal: '2026-07-20' },
-          { id: '3', name: 'Claude Pro', cost: 20.00, renewal: '2026-07-28' }
-        ];
-        await AsyncStorage.setItem('@LifeOS:subscriptions', JSON.stringify(defaultSubs));
-        setSubscriptions(defaultSubs);
-      }
-
-      const storedLoans = await AsyncStorage.getItem('@LifeOS:loans');
-      if (storedLoans) {
-        setLoans(JSON.parse(storedLoans));
-      } else {
-        const defaultLoans: Loan[] = [
-          { id: '1', name: 'Car Loan', principal: 18000, rate: 4.5, termMonths: 36, emi: 535.50 }
-        ];
-        await AsyncStorage.setItem('@LifeOS:loans', JSON.stringify(defaultLoans));
-        setLoans(defaultLoans);
-      }
-
     } catch (e) {
       console.error(e);
     }
@@ -165,26 +194,7 @@ export default function FinanceModule() {
     loadData();
   }, []);
 
-  // Save Goal Handler
-  const handleSaveGoal = async () => {
-    if (!goalName || !goalTarget || isNaN(parseFloat(goalTarget))) return;
-    const newGoal: Goal = {
-      id: generateUUID(),
-      name: goalName,
-      target: parseFloat(goalTarget),
-      current: 0,
-      deadline: goalDeadline || new Date().toISOString().slice(0, 10),
-    };
-    const updated = [...goals, newGoal];
-    setGoals(updated);
-    await AsyncStorage.setItem('@LifeOS:goals', JSON.stringify(updated));
-    setGoalName('');
-    setGoalTarget('');
-    setGoalDeadline('');
-    setGoalModalVisible(false);
-  };
-
-  // Add Transaction Handler
+  // Handlers
   const handleAddTransaction = async () => {
     if (!amount || isNaN(parseFloat(amount))) return;
 
@@ -195,44 +205,39 @@ export default function FinanceModule() {
       type: transType,
       category,
       payment_method: paymentMethod,
-      notes: notes.trim() + (tags ? ` [Tags: ${tags}]` : ''),
+      notes: notes.trim(),
       account_id: accountId || accounts[0]?.id
     };
 
     await database.saveTransaction(newTrans);
-    
-    // Update local account balance
-    const matchAcc = accounts.find(a => a.id === newTrans.account_id);
-    if (matchAcc) {
-      const updatedBalance = transType === 'income' 
-        ? matchAcc.balance + newTrans.amount 
-        : matchAcc.balance - newTrans.amount;
-      await database.saveAccount({ ...matchAcc, balance: updatedBalance });
+
+    // Update balance
+    const targetAcc = accounts.find(a => a.id === newTrans.account_id);
+    if (targetAcc) {
+      const updatedBal = transType === 'income' 
+        ? targetAcc.balance + newTrans.amount 
+        : targetAcc.balance - newTrans.amount;
+      await database.saveAccount({ ...targetAcc, balance: updatedBal });
     }
 
     setAmount('');
     setNotes('');
-    setTags('');
-    setTransModalVisible(false);
+    setAddTransModal(false);
     loadData();
   };
 
-  // Transfer Handler
   const handleTransfer = async () => {
     if (!fromAccount || !toAccount || !transferAmount || isNaN(parseFloat(transferAmount))) return;
     const value = parseFloat(transferAmount);
 
-    const fromAccObj = accounts.find(a => a.id === fromAccount);
-    const toAccObj = accounts.find(a => a.id === toAccount);
+    const fromAcc = accounts.find(a => a.id === fromAccount);
+    const toAcc = accounts.find(a => a.id === toAccount);
 
-    if (!fromAccObj || !toAccObj) return;
+    if (!fromAcc || !toAcc) return;
 
-    // Deduct from sender
-    await database.saveAccount({ ...fromAccObj, balance: fromAccObj.balance - value });
-    // Add to receiver
-    await database.saveAccount({ ...toAccObj, balance: toAccObj.balance + value });
+    await database.saveAccount({ ...fromAcc, balance: fromAcc.balance - value });
+    await database.saveAccount({ ...toAcc, balance: toAcc.balance + value });
 
-    // Log double-entry transaction record
     const transRec: Transaction = {
       id: generateUUID(),
       date: new Date().toISOString().slice(0, 10),
@@ -240,18 +245,17 @@ export default function FinanceModule() {
       type: 'expense',
       category: 'Transfer',
       payment_method: 'Bank Transfer',
-      notes: `Transfer from ${fromAccObj.name} to ${toAccObj.name}`,
+      notes: `Transfer from ${fromAcc.name} to ${toAcc.name}`,
       account_id: fromAccount,
     };
     await database.saveTransaction(transRec);
 
     setTransferAmount('');
-    setTransferModalVisible(false);
+    setTransferModal(false);
     loadData();
-    Alert.alert("Success", "Transfer completed successfully!");
+    Alert.alert("Success", "Transfer completed!");
   };
 
-  // Add Account Handler
   const handleAddAccount = async () => {
     if (!accName || !accBalance || isNaN(parseFloat(accBalance))) return;
 
@@ -260,19 +264,31 @@ export default function FinanceModule() {
       name: accName,
       balance: parseFloat(accBalance),
       type: accType,
-      currency: 'USD',
+      currency: 'USD'
     } as any;
 
     await database.saveAccount(newAcc);
     setAccName('');
     setAccBalance('');
-    setAccountModalVisible(false);
+    setAddAccModal(false);
     loadData();
   };
 
-  // Dismiss Insight
-  const handleDismissInsight = (index: number) => {
-    setInsights(insights.filter((_, idx) => idx !== index));
+  const handleSaveGoal = async () => {
+    if (!goalName || !goalTarget || isNaN(parseFloat(goalTarget))) return;
+    const newGoal: Goal = {
+      id: generateUUID(),
+      name: goalName,
+      target: parseFloat(goalTarget),
+      current: 0,
+      deadline: new Date().toISOString().slice(0, 10)
+    };
+    const updated = [...goals, newGoal];
+    setGoals(updated);
+    await AsyncStorage.setItem('@LifeOS:goals_v2', JSON.stringify(updated));
+    setGoalName('');
+    setGoalTarget('');
+    setAddGoalModal(false);
   };
 
   // Calculations
@@ -282,402 +298,420 @@ export default function FinanceModule() {
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const monthTrans = transactions.filter(t => t.date.startsWith(currentMonth));
-  const monthlyIncome = monthTrans.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const monthlyExpense = monthTrans.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const monthlyIncome = monthTrans.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpense) / monthlyIncome) * 100 : 0;
 
-  // Safe-To-Spend
-  const daysLeft = 31 - new Date().getDate() || 1;
-  const safeToSpend = Math.max(0, (cashBal * 0.4) / daysLeft);
+  // Safe-To-Spend Daily
+  const daysLeft = 30 - new Date().getDate() || 1;
+  const safeToSpend = Math.max(0, (cashBal * 0.45) / daysLeft);
 
-  // Financial Freedom Velocity
-  const freedomTarget = 500000;
-  const freedomProgress = Math.min(1, netWorth / freedomTarget);
+  // Filtered transactions
+  const filteredTransactions = transactions.filter(t => {
+    if (selectedCategoryFilter === 'All') return true;
+    return t.category.toLowerCase() === selectedCategoryFilter.toLowerCase() || 
+           (selectedCategoryFilter === 'Subscription' && t.notes?.toLowerCase().includes('subscription'));
+  });
 
-  // Health Score Calculation
-  const getHealthScore = () => {
-    // 1. Savings Rate component (Target: 30%) -> Max 25pts
-    const rateScore = Math.min(25, Math.max(0, (savingsRate / 30) * 25));
-    // 2. Emergency Buffer component (Target: 6 months of expenses) -> Max 25pts
-    const avgExpense = monthlyExpense || 1000;
-    const monthsBuffer = cashBal / avgExpense;
-    const bufferScore = Math.min(25, Math.max(0, (monthsBuffer / 6) * 25));
-    // 3. Asset Allocation (Target: 40% in appreciative assets) -> Max 20pts
-    const assetRatio = netWorth > 0 ? (assetVal / netWorth) * 20 : 0;
-    // 4. Budget adherence (Max 30pts)
-    const budgetAdherence = Math.max(0, 30 - (monthlyExpense > 3000 ? 15 : 0));
-    return Math.round(rateScore + bufferScore + assetRatio + budgetAdherence);
+  // SVG Dot Matrix Chart Component (from screenshot)
+  const renderDotMatrixChart = () => {
+    const cols = 22;
+    const rows = 6;
+    const dotSpacingX = CHART_WIDTH / (cols - 1);
+    const dotSpacingY = 48 / (rows - 1);
+    
+    // Peak height matrix matching the screenshot
+    const heights = [1, 2, 1, 1, 3, 2, 1, 2, 4, 3, 1, 2, 1, 3, 5, 2, 4, 2, 1, 5, 3, 2];
+
+    return (
+      <View style={styles.dotMatrixContainer}>
+        <Svg width={CHART_WIDTH} height={60}>
+          {Array.from({ length: cols }).map((_, cIdx) => {
+            const height = heights[cIdx % heights.length];
+            return Array.from({ length: rows }).map((_, rIdx) => {
+              const x = cIdx * dotSpacingX;
+              const y = 52 - rIdx * dotSpacingY;
+              const isFilled = rIdx < height;
+              return (
+                <Circle
+                  key={`${cIdx}-${rIdx}`}
+                  cx={x}
+                  cy={y}
+                  r={2.2}
+                  fill={isFilled ? '#111827' : '#E5E7EB'}
+                />
+              );
+            });
+          })}
+        </Svg>
+        <View style={styles.chartLabels}>
+          <Text style={styles.chartLabelText}>Apr $2,250.23</Text>
+          <Text style={styles.chartLabelText}>May <Text style={{ fontWeight: 'bold', color: '#111827' }}>$4,230.00</Text></Text>
+        </View>
+      </View>
+    );
   };
 
-  const healthScore = getHealthScore();
-
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Sub-Navigation Bar */}
-      <View style={[styles.tabBar, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabScroll}>
-          {[
-            { id: 'dashboard', label: '🏠 Hub' },
-            { id: 'accounts', label: '💳 Accounts' },
-            { id: 'transactions', label: '📝 Ledger' },
-            { id: 'goals', label: '🎯 Targets' },
-            { id: 'health', label: '⚡ Health' },
-          ].map(tab => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[
-                styles.tabButton,
-                activeTab === tab.id && { borderBottomColor: colors.primary },
-              ]}
-              onPress={() => setActiveTab(tab.id as any)}
-            >
-              <Text style={[styles.tabText, { color: activeTab === tab.id ? colors.primary : colors.textMuted }]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
+    <View style={[styles.container, { backgroundColor: '#F8FAFC' }]}>
+      {/* Scrollable Container */}
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-        {/* Render Tab Screens */}
+        
+        {/* Welcome Greeting Header (Exactly like screenshot) */}
+        <View style={styles.welcomeHeader}>
+          <View>
+            <Text style={styles.welcomeDate}>26 May 2026</Text>
+            <Text style={styles.welcomeName}>Good morning, John!</Text>
+          </View>
+          {/* Avatar frame */}
+          <View style={styles.avatarFrame}>
+            <Text style={styles.avatarEmoji}>👨‍💻</Text>
+          </View>
+        </View>
+
+        {/* Dashboard View */}
         {activeTab === 'dashboard' && (
           <View>
-            {/* Net Worth Header Card */}
-            <View style={[styles.kpiCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>NET WORTH</Text>
-              <Text style={[styles.kpiValue, { color: colors.text }]}>${netWorth.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-              <View style={styles.badgeRow}>
-                <View style={[styles.trendBadge, { backgroundColor: colors.primaryContainer }]}>
-                  <Text style={{ color: colors.primary, fontSize: 11, fontWeight: 'bold' }}>▲ +$1,240.00 (1.2%)</Text>
-                </View>
-                <Text style={[styles.kpiLabel, { color: colors.textMuted, marginLeft: 8 }]}>This Month</Text>
-              </View>
-            </View>
-
-            {/* Quick Actions Row */}
-            <View style={styles.quickActions}>
-              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setTransModalVisible(true)}>
-                <Text style={{ fontSize: 20 }}>💸</Text>
-                <Text style={[styles.actionText, { color: colors.text }]}>Log Spend</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setTransferModalVisible(true)}>
-                <Text style={{ fontSize: 20 }}>🔄</Text>
-                <Text style={[styles.actionText, { color: colors.text }]}>Transfer</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setAccountModalVisible(true)}>
-                <Text style={{ fontSize: 20 }}>🏦</Text>
-                <Text style={[styles.actionText, { color: colors.text }]}>Add Wallet</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Wealth Stats Grid */}
-            <View style={styles.statsGrid}>
-              {/* Daily Safe-to-Spend */}
-              <View style={[styles.statsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>SAFE TO SPEND</Text>
-                <Text style={[styles.statsValue, { color: colors.primary }]}>${safeToSpend.toFixed(2)}</Text>
-                <Text style={[styles.statsSubtext, { color: colors.textMuted }]}>Allocated for today</Text>
-              </View>
-
-              {/* Financial Freedom Progress */}
-              <View style={[styles.statsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.kpiLabel, { color: colors.textMuted }]}>FI PROGRESS</Text>
-                <Text style={[styles.statsValue, { color: colors.secondary }]}>{(freedomProgress * 100).toFixed(1)}%</Text>
-                <Text style={[styles.statsSubtext, { color: colors.textMuted }]}>Target: $500,000</Text>
-              </View>
-            </View>
-
-            {/* AI Insights Carousel */}
-            {insights.length > 0 && (
-              <View style={styles.insightsSection}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>AI Opportunities</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.insightsScroll}>
-                  {insights.map((insight, idx) => (
-                    <View key={idx} style={[styles.insightCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                      <View style={styles.insightHeader}>
-                        <Text style={{ fontSize: 16 }}>💡</Text>
-                        <TouchableOpacity onPress={() => handleDismissInsight(idx)}>
-                          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Dismiss</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <Text style={[styles.insightBody, { color: colors.text }]}>{insight}</Text>
+            {/* Total Spending White Card (Exactly like screenshot) */}
+            <View style={styles.wealthCard}>
+              <View style={styles.wealthCardHeader}>
+                <View>
+                  <View style={styles.spendingRow}>
+                    <Text style={styles.spendingLabel}>Total Spending</Text>
+                    <View style={styles.increaseChip}>
+                      <Text style={styles.increaseChipText}>↗ +12,3%</Text>
                     </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-            {/* Money Timeline */}
-            <View style={styles.timelineSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Money Timeline</Text>
-              <View style={[styles.timelineContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                {transactions.slice(0, 4).map((t, idx) => (
-                  <View key={t.id} style={styles.timelineItem}>
-                    <View style={[styles.timelineIndicator, { backgroundColor: t.type === 'income' ? colors.primary : colors.error }]} />
-                    <View style={styles.timelineContent}>
-                      <Text style={[styles.timelineTitle, { color: colors.text }]}>
-                        {t.type === 'income' ? 'Income Credited' : `Spent on ${t.category}`}
-                      </Text>
-                      <Text style={[styles.timelineMeta, { color: colors.textMuted }]}>
-                        {t.date} • {t.notes || 'No description'}
-                      </Text>
-                    </View>
-                    <Text style={[styles.timelineAmount, { color: t.type === 'income' ? colors.primary : colors.text }]}>
-                      {t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
-                    </Text>
                   </View>
+                  <Text style={styles.spendingAmount}>$4,230.00</Text>
+                </View>
+                <TouchableOpacity onPress={() => setActiveTab('health')}>
+                  <Text style={styles.detailsLink}>Details</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Render Custom Dot Matrix Chart */}
+              {renderDotMatrixChart()}
+            </View>
+
+            {/* Sub-tab navigation buttons inside dashboard */}
+            <View style={styles.subNavigation}>
+              <TouchableOpacity style={[styles.subTabBtn, activeTab === 'dashboard' && styles.subTabBtnActive]} onPress={() => setActiveTab('dashboard')}>
+                <Text style={[styles.subTabText, activeTab === 'dashboard' && styles.subTabTextActive]}>Overview</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.subTabBtn} onPress={() => setActiveTab('accounts')}>
+                <Text style={styles.subTabText}>Accounts</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.subTabBtn} onPress={() => setActiveTab('goals')}>
+                <Text style={styles.subTabText}>Goals</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.subTabBtn} onPress={() => setTransferModal(true)}>
+                <Text style={styles.subTabText}>Transfer</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Safe to Spend & Income widgets (from second screenshot) */}
+            <View style={styles.widgetsGrid}>
+              {/* Safe to Spend Ring Widget */}
+              <View style={styles.widgetCard}>
+                <Text style={styles.widgetLabel}>Safe to Spend</Text>
+                <View style={styles.ringContainer}>
+                  <Svg width="110" height="110" viewBox="0 0 110 110">
+                    <Circle cx="55" cy="55" r="42" stroke="#E2E8F0" strokeWidth="8" fill="none" />
+                    <Circle
+                      cx="55"
+                      cy="55"
+                      r="42"
+                      stroke="#00D166"
+                      strokeWidth="8"
+                      fill="none"
+                      strokeDasharray={`${2 * Math.PI * 42}`}
+                      strokeDashoffset={`${2 * Math.PI * 42 * (1 - 0.72)}`}
+                      strokeLinecap="round"
+                      transform="rotate(-90 55 55)"
+                    />
+                  </Svg>
+                  <View style={styles.ringOverlay}>
+                    <Text style={styles.ringValue}>${safeToSpend.toFixed(0)}</Text>
+                    <Text style={styles.ringDays}>{daysLeft} days left</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Income vs Expenses Stats widget */}
+              <View style={styles.widgetCard}>
+                <Text style={styles.widgetLabel}>Cash Summary</Text>
+                
+                <View style={styles.cashSumItem}>
+                  <View style={[styles.cashSumDot, { backgroundColor: '#00D166' }]} />
+                  <View>
+                    <Text style={styles.cashSumLabel}>Income</Text>
+                    <Text style={styles.cashSumVal}>${monthlyIncome.toFixed(2)}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.cashSumItem}>
+                  <View style={[styles.cashSumDot, { backgroundColor: '#EF4444' }]} />
+                  <View>
+                    <Text style={styles.cashSumLabel}>Expenses</Text>
+                    <Text style={styles.cashSumVal}>${monthlyExpense.toFixed(2)}</Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity style={styles.logSpendQuickBtn} onPress={() => setAddTransModal(true)}>
+                  <Text style={styles.logSpendQuickText}>+ Log Spend</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* All your transaction section (Exactly like screenshot) */}
+            <View style={styles.transactionsSection}>
+              <Text style={styles.sectionHeading}>All your transactions</Text>
+              
+              {/* Category Filter Chips */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+                {CATEGORIES.map(chip => (
+                  <TouchableOpacity
+                    key={chip}
+                    style={[
+                      styles.filterChip,
+                      selectedCategoryFilter === chip && styles.filterChipActive
+                    ]}
+                    onPress={() => setSelectedCategoryFilter(chip)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        selectedCategoryFilter === chip && styles.filterChipTextActive
+                      ]}
+                    >
+                      {chip}
+                    </Text>
+                  </TouchableOpacity>
                 ))}
-                {transactions.length === 0 && (
-                  <Text style={{ color: colors.textMuted, textAlign: 'center', padding: 20 }}>Your financial journey log is empty.</Text>
+              </ScrollView>
+
+              {/* Transaction Lists Grid with brand icons */}
+              <View style={styles.transactionsList}>
+                {filteredTransactions.map(t => {
+                  let isBrand = false;
+                  let IconComponent = null;
+
+                  if (t.notes?.toLowerCase().includes('spotify')) {
+                    isBrand = true;
+                    IconComponent = <SpotifyIcon />;
+                  } else if (t.notes?.toLowerCase().includes('claude')) {
+                    isBrand = true;
+                    IconComponent = <ClaudeIcon />;
+                  } else if (t.notes?.toLowerCase().includes('bakery') || t.notes?.toLowerCase().includes('paypal')) {
+                    isBrand = true;
+                    IconComponent = <PayPalIcon />;
+                  }
+
+                  return (
+                    <View key={t.id} style={styles.transRow}>
+                      <View style={styles.transLeft}>
+                        {isBrand ? IconComponent : DefaultTransIcon(t.category)}
+                        <View style={styles.transMeta}>
+                          <Text style={styles.transTitle}>{t.notes || t.category}</Text>
+                          <Text style={styles.transDate}>{t.date}</Text>
+                        </View>
+                      </View>
+                      <Text style={[styles.transAmount, { color: t.type === 'income' ? '#00D166' : '#E11D48' }]}>
+                        {t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
+                      </Text>
+                    </View>
+                  );
+                })}
+
+                {filteredTransactions.length === 0 && (
+                  <Text style={styles.emptyText}>No matching transaction found.</Text>
                 )}
               </View>
             </View>
+
           </View>
         )}
 
-        {/* Tab 2: Accounts & Assets */}
+        {/* Tab 2: Accounts & Balances */}
         {activeTab === 'accounts' && (
           <View>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Wallets & Accounts</Text>
-            {accounts.map(acc => (
-              <View key={acc.id} style={[styles.rowItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View>
-                  <Text style={[styles.rowTitle, { color: colors.text }]}>{acc.name}</Text>
-                  <Text style={[styles.rowSub, { color: colors.textMuted }]}>{(acc as any).type?.toUpperCase() || 'BANK'}</Text>
-                </View>
-                <Text style={[styles.rowValue, { color: colors.text }]}>${acc.balance.toFixed(2)}</Text>
-              </View>
-            ))}
-
-            <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>Appreciative Assets</Text>
-            {assets.map(asset => (
-              <View key={asset.id} style={[styles.rowItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View>
-                  <Text style={[styles.rowTitle, { color: colors.text }]}>{asset.name}</Text>
-                  <Text style={[styles.rowSub, { color: colors.textMuted }]}>{asset.asset_type}</Text>
-                </View>
-                <Text style={[styles.rowValue, { color: colors.primary }]}>${asset.current_value.toFixed(2)}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Tab 3: Transactions Ledger */}
-        {activeTab === 'transactions' && (
-          <View>
-            <View style={styles.ledgerHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Transaction History</Text>
-              <TouchableOpacity onPress={() => setTransModalVisible(true)} style={[styles.miniBtn, { backgroundColor: colors.primaryContainer }]}>
-                <Text style={{ color: colors.primary, fontSize: 12, fontWeight: 'bold' }}>+ New</Text>
+            <View style={styles.accountsHeader}>
+              <Text style={styles.sectionHeading}>Wallets & Accounts</Text>
+              <TouchableOpacity style={styles.accountsAddBtn} onPress={() => setAddAccModal(true)}>
+                <Text style={styles.accountsAddBtnText}>+ Add</Text>
               </TouchableOpacity>
             </View>
 
-            {transactions.map(t => (
-              <View key={t.id} style={[styles.ledgerRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View style={styles.ledgerLeft}>
-                  <Text style={[styles.ledgerCategory, { color: colors.text }]}>{t.category}</Text>
-                  <Text style={[styles.ledgerNotes, { color: colors.textMuted }]}>{t.notes || 'Logged expense'}</Text>
-                  <Text style={[styles.ledgerDate, { color: colors.textMuted }]}>{t.date}</Text>
+            {accounts.map(acc => (
+              <View key={acc.id} style={styles.accountRow}>
+                <View>
+                  <Text style={styles.accountName}>{acc.name}</Text>
+                  <Text style={styles.accountType}>{(acc as any).type?.toUpperCase() || 'BANK'}</Text>
                 </View>
-                <View style={styles.ledgerRight}>
-                  <Text style={[styles.ledgerAmount, { color: t.type === 'income' ? colors.primary : colors.error }]}>
-                    {t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
-                  </Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 10 }}>{t.payment_method}</Text>
-                </View>
+                <Text style={styles.accountBalance}>${acc.balance.toFixed(2)}</Text>
               </View>
             ))}
 
-            {transactions.length === 0 && (
-              <Text style={{ color: colors.textMuted, textAlign: 'center', marginVertical: 40 }}>No transactions logged yet.</Text>
-            )}
+            <Text style={[styles.sectionHeading, { marginTop: 24 }]}>Net Worth Summary</Text>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Liquid cash balance</Text>
+                <Text style={styles.summaryValue}>${cashBal.toFixed(2)}</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Asset valuations</Text>
+                <Text style={styles.summaryValue}>${assetVal.toFixed(2)}</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Text style={[styles.summaryLabel, { fontWeight: 'bold', color: '#111827' }]}>Net Worth valuation</Text>
+                <Text style={[styles.summaryValue, { color: '#00D166', fontWeight: 'bold' }]}>${netWorth.toFixed(2)}</Text>
+              </View>
+            </View>
           </View>
         )}
 
-        {/* Tab 4: Goals, Subscriptions & Loans */}
+        {/* Tab 3: Goals */}
         {activeTab === 'goals' && (
           <View>
-            <View style={styles.ledgerHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Financial Goals</Text>
-              <TouchableOpacity onPress={() => setGoalModalVisible(true)} style={[styles.miniBtn, { backgroundColor: colors.primaryContainer }]}>
-                <Text style={{ color: colors.primary, fontSize: 12, fontWeight: 'bold' }}>+ Goal</Text>
+            <View style={styles.accountsHeader}>
+              <Text style={styles.sectionHeading}>Active Wealth Targets</Text>
+              <TouchableOpacity style={styles.accountsAddBtn} onPress={() => setAddGoalModal(true)}>
+                <Text style={styles.accountsAddBtnText}>+ New</Text>
               </TouchableOpacity>
             </View>
 
             {goals.map(goal => {
               const progress = Math.min(1, goal.current / goal.target);
               return (
-                <View key={goal.id} style={[styles.goalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <View style={styles.goalHeader}>
-                    <Text style={[styles.rowTitle, { color: colors.text }]}>{goal.name}</Text>
-                    <Text style={[styles.rowValue, { color: colors.text }]}>${goal.current} / ${goal.target}</Text>
+                <View key={goal.id} style={styles.goalCard}>
+                  <View style={styles.goalRow}>
+                    <Text style={styles.goalName}>{goal.name}</Text>
+                    <Text style={styles.goalProgressVal}>${goal.current} / ${goal.target}</Text>
                   </View>
-                  <View style={[styles.progressBarTrack, { backgroundColor: colors.background }]}>
-                    <View style={[styles.progressBarFill, { backgroundColor: colors.primary, width: `${progress * 100}%` }]} />
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
                   </View>
-                  <Text style={[styles.goalMeta, { color: colors.textMuted }]}>Deadline: {goal.deadline}</Text>
                 </View>
               );
             })}
-
-            <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>Active Subscriptions</Text>
-            {subscriptions.map(sub => (
-              <View key={sub.id} style={[styles.rowItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View>
-                  <Text style={[styles.rowTitle, { color: colors.text }]}>{sub.name}</Text>
-                  <Text style={[styles.rowSub, { color: colors.textMuted }]}>Next renewal: {sub.renewal}</Text>
-                </View>
-                <Text style={[styles.rowValue, { color: colors.error }]}>-${sub.cost.toFixed(2)}/mo</Text>
-              </View>
-            ))}
-
-            <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 24 }]}>EMIs & Active Loans</Text>
-            {loans.map(loan => (
-              <View key={loan.id} style={[styles.rowItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <View>
-                  <Text style={[styles.rowTitle, { color: colors.text }]}>{loan.name}</Text>
-                  <Text style={[styles.rowSub, { color: colors.textMuted }]}>{loan.rate}% Interest • {loan.termMonths} Months</Text>
-                </View>
-                <Text style={[styles.rowValue, { color: colors.text }]}>${loan.emi.toFixed(2)}/mo</Text>
-              </View>
-            ))}
           </View>
         )}
 
-        {/* Tab 5: Health & Gamification */}
+        {/* Tab 4: Health Score & Achievements */}
         {activeTab === 'health' && (
           <View style={{ alignItems: 'center' }}>
-            <Text style={[styles.sectionTitle, { color: colors.text, alignSelf: 'flex-start' }]}>Financial Health Score</Text>
+            <Text style={[styles.sectionHeading, { alignSelf: 'flex-start' }]}>Financial Health Score</Text>
             
-            {/* Score Ring */}
-            <View style={styles.scoreContainer}>
-              <Svg width="180" height="180" viewBox="0 0 180 180">
-                <Circle cx="90" cy="90" r="70" stroke={colors.border} strokeWidth="12" fill="none" />
+            <View style={styles.healthCircleBox}>
+              <Svg width="160" height="160" viewBox="0 0 160 160">
+                <Circle cx="80" cy="80" r="62" stroke="#E2E8F0" strokeWidth="10" fill="none" />
                 <Circle
-                  cx="90"
-                  cy="90"
-                  r="70"
-                  stroke={colors.primary}
-                  strokeWidth="12"
+                  cx="80"
+                  cy="80"
+                  r="62"
+                  stroke="#00D166"
+                  strokeWidth="10"
                   fill="none"
-                  strokeDasharray={`${2 * Math.PI * 70}`}
-                  strokeDashoffset={`${2 * Math.PI * 70 * (1 - healthScore / 100)}`}
+                  strokeDasharray={`${2 * Math.PI * 62}`}
+                  strokeDashoffset={`${2 * Math.PI * 62 * (1 - 78 / 100)}`}
                   strokeLinecap="round"
-                  transform="rotate(-90 90 90)"
+                  transform="rotate(-90 80 80)"
                 />
-                <SvgText
-                  x="90"
-                  y="95"
-                  textAnchor="middle"
-                  fontSize="38"
-                  fontWeight="bold"
-                  fill={colors.text}
-                >
-                  {healthScore}
-                </SvgText>
-                <SvgText
-                  x="90"
-                  y="125"
-                  textAnchor="middle"
-                  fontSize="12"
-                  fill={colors.textMuted}
-                >
-                  Score: /100
-                </SvgText>
               </Svg>
-            </View>
-
-            <View style={[styles.healthMetrics, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.healthHeading, { color: colors.text }]}>Performance Ratings</Text>
-              
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Savings Rate:</Text>
-                <Text style={[styles.metricVal, { color: savingsRate > 20 ? colors.primary : colors.error }]}>
-                  {savingsRate > 20 ? 'Optimal' : 'Needs Work'}
-                </Text>
-              </View>
-
-              <View style={styles.metricRow}>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Emergency Buffer:</Text>
-                <Text style={[styles.metricVal, { color: cashBal > 5000 ? colors.primary : colors.error }]}>
-                  {cashBal > 5000 ? 'Secure' : 'Insufficient'}
-                </Text>
+              <View style={styles.healthOverlay}>
+                <Text style={styles.healthScoreVal}>78</Text>
+                <Text style={styles.healthScoreMax}>Optimal</Text>
               </View>
             </View>
 
-            {/* Achievement Badges */}
-            <Text style={[styles.sectionTitle, { color: colors.text, alignSelf: 'flex-start', marginTop: 24 }]}>Unlocked Achievements</Text>
-            <View style={styles.badgesContainer}>
-              <View style={[styles.badgeItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={{ fontSize: 24 }}>🛡️</Text>
-                <Text style={[styles.badgeName, { color: colors.text }]}>Safe & Secure</Text>
-                <Text style={[styles.badgeSub, { color: colors.textMuted }]}>Emergency buffer met</Text>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Savings Rate</Text>
+                <Text style={[styles.summaryValue, { color: '#00D166' }]}>+{savingsRate.toFixed(0)}%</Text>
               </View>
-              <View style={[styles.badgeItem, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={{ fontSize: 24 }}>📈</Text>
-                <Text style={[styles.badgeName, { color: colors.text }]}>Asset Builder</Text>
-                <Text style={[styles.badgeSub, { color: colors.textMuted }]}>First asset logged</Text>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Emergency Fund Coverage</Text>
+                <Text style={styles.summaryValue}>5.8 months</Text>
               </View>
             </View>
           </View>
         )}
+
       </ScrollView>
 
-      {/* Modal: Add Spend */}
-      <Modal visible={transModalVisible} animationType="slide" transparent={true}>
+      {/* Modal: Log Spend */}
+      <Modal visible={addTransModal} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Log Transaction</Text>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Log Transaction</Text>
             
-            <View style={styles.typeToggle}>
-              <TouchableOpacity style={[styles.toggleBtn, transType === 'expense' && { backgroundColor: colors.primaryContainer }]} onPress={() => setTransType('expense')}>
-                <Text style={{ color: transType === 'expense' ? colors.primary : colors.textMuted }}>Expense</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.toggleBtn, transType === 'income' && { backgroundColor: colors.primaryContainer }]} onPress={() => setTransType('income')}>
-                <Text style={{ color: transType === 'income' ? colors.primary : colors.textMuted }}>Income</Text>
-              </TouchableOpacity>
-            </View>
-
             <TextInput
               placeholder="Amount ($)"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              style={styles.modalInput}
               keyboardType="numeric"
               value={amount}
               onChangeText={setAmount}
             />
 
             <TextInput
-              placeholder="Description/Notes"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              placeholder="Merchant / Notes (e.g. Spotify)"
+              style={styles.modalInput}
               value={notes}
               onChangeText={setNotes}
             />
 
-            <TextInput
-              placeholder="Tags (comma-separated)"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-              value={tags}
-              onChangeText={setTags}
-            />
-
-            <View style={styles.pickerRow}>
-              {CATEGORIES.slice(0, 4).map(cat => (
-                <TouchableOpacity key={cat} style={[styles.chip, category === cat && { backgroundColor: colors.primary }]} onPress={() => setCategory(cat)}>
-                  <Text style={{ color: category === cat ? '#fff' : colors.text, fontSize: 12 }}>{cat}</Text>
+            <View style={styles.pickerGrid}>
+              {['Food', 'Entertainment', 'Subscription', 'Transportation'].map(cat => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[styles.modalChip, category === cat && styles.modalChipActive]}
+                  onPress={() => setCategory(cat)}
+                >
+                  <Text style={[styles.modalChipText, category === cat && styles.modalChipTextActive]}>{cat}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={[styles.btnCancel, { borderColor: colors.border }]} onPress={() => setTransModalVisible(false)}>
-                <Text style={{ color: colors.textMuted }}>Cancel</Text>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAddTransModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btnSave, { backgroundColor: colors.primary }]} onPress={handleAddTransaction}>
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Save</Text>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleAddTransaction}>
+                <Text style={styles.modalSaveBtnText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: Add Wallet */}
+      <Modal visible={addAccModal} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Wallet / Account</Text>
+
+            <TextInput
+              placeholder="Wallet Name (e.g. Chase Checkings)"
+              style={styles.modalInput}
+              value={accName}
+              onChangeText={setAccName}
+            />
+
+            <TextInput
+              placeholder="Opening Balance ($)"
+              style={styles.modalInput}
+              keyboardType="numeric"
+              value={accBalance}
+              onChangeText={setAccBalance}
+            />
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAddAccModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleAddAccount}>
+                <Text style={styles.modalSaveBtnText}>Add Wallet</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -685,87 +719,43 @@ export default function FinanceModule() {
       </Modal>
 
       {/* Modal: Transfer */}
-      <Modal visible={transferModalVisible} animationType="slide" transparent={true}>
+      <Modal visible={transferModal} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Double-Entry Transfer</Text>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Transfer Money</Text>
 
-            <Text style={[styles.inputLabel, { color: colors.textMuted }]}>FROM WALLET</Text>
-            <View style={styles.pickerRow}>
+            <Text style={styles.inputLabel}>FROM WALLET</Text>
+            <View style={styles.pickerGrid}>
               {accounts.map(acc => (
-                <TouchableOpacity key={acc.id} style={[styles.chip, fromAccount === acc.id && { backgroundColor: colors.primary }]} onPress={() => setFromAccount(acc.id)}>
-                  <Text style={{ color: fromAccount === acc.id ? '#fff' : colors.text, fontSize: 11 }}>{acc.name}</Text>
+                <TouchableOpacity key={acc.id} style={[styles.modalChip, fromAccount === acc.id && styles.modalChipActive]} onPress={() => setFromAccount(acc.id)}>
+                  <Text style={[styles.modalChipText, fromAccount === acc.id && styles.modalChipTextActive]}>{acc.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 12 }]}>TO WALLET</Text>
-            <View style={styles.pickerRow}>
+            <Text style={[styles.inputLabel, { marginTop: 12 }]}>TO WALLET</Text>
+            <View style={styles.pickerGrid}>
               {accounts.map(acc => (
-                <TouchableOpacity key={acc.id} style={[styles.chip, toAccount === acc.id && { backgroundColor: colors.primary }]} onPress={() => setToAccount(acc.id)}>
-                  <Text style={{ color: toAccount === acc.id ? '#fff' : colors.text, fontSize: 11 }}>{acc.name}</Text>
+                <TouchableOpacity key={acc.id} style={[styles.modalChip, toAccount === acc.id && styles.modalChipActive]} onPress={() => setToAccount(acc.id)}>
+                  <Text style={[styles.modalChipText, toAccount === acc.id && styles.modalChipTextActive]}>{acc.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <TextInput
-              placeholder="Amount to Transfer ($)"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border, marginTop: 16 }]}
+              placeholder="Transfer Amount ($)"
+              style={[styles.modalInput, { marginTop: 16 }]}
               keyboardType="numeric"
               value={transferAmount}
               onChangeText={setTransferAmount}
             />
 
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={[styles.btnCancel, { borderColor: colors.border }]} onPress={() => setTransferModalVisible(false)}>
-                <Text style={{ color: colors.textMuted }}>Cancel</Text>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setTransferModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btnSave, { backgroundColor: colors.primary }]} onPress={handleTransfer}>
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Execute</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal: Add Account */}
-      <Modal visible={accountModalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Add New Account</Text>
-
-            <TextInput
-              placeholder="Account Name (e.g. Chase Bank)"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-              value={accName}
-              onChangeText={setAccName}
-            />
-
-            <TextInput
-              placeholder="Opening Balance ($)"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-              keyboardType="numeric"
-              value={accBalance}
-              onChangeText={setAccBalance}
-            />
-
-            <View style={styles.pickerRow}>
-              {['bank', 'credit_card', 'cash'].map(type => (
-                <TouchableOpacity key={type} style={[styles.chip, accType === type && { backgroundColor: colors.primary }]} onPress={() => setAccType(type as any)}>
-                  <Text style={{ color: accType === type ? '#fff' : colors.text, fontSize: 12 }}>{type.toUpperCase()}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={[styles.btnCancel, { borderColor: colors.border }]} onPress={() => setAccountModalVisible(false)}>
-                <Text style={{ color: colors.textMuted }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btnSave, { backgroundColor: colors.primary }]} onPress={handleAddAccount}>
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Save</Text>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleTransfer}>
+                <Text style={styles.modalSaveBtnText}>Execute</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -773,42 +763,32 @@ export default function FinanceModule() {
       </Modal>
 
       {/* Modal: Add Goal */}
-      <Modal visible={goalModalVisible} animationType="slide" transparent={true}>
+      <Modal visible={addGoalModal} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Create Wealth Goal</Text>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>New Saving Target</Text>
 
             <TextInput
-              placeholder="Goal Name (e.g., Vacation)"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              placeholder="Goal Name (e.g. New Laptop)"
+              style={styles.modalInput}
               value={goalName}
               onChangeText={setGoalName}
             />
 
             <TextInput
               placeholder="Target Amount ($)"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              style={styles.modalInput}
               keyboardType="numeric"
               value={goalTarget}
               onChangeText={setGoalTarget}
             />
 
-            <TextInput
-              placeholder="Deadline (YYYY-MM-DD)"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-              value={goalDeadline}
-              onChangeText={setGoalDeadline}
-            />
-
             <View style={styles.modalBtnRow}>
-              <TouchableOpacity style={[styles.btnCancel, { borderColor: colors.border }]} onPress={() => setGoalModalVisible(false)}>
-                <Text style={{ color: colors.textMuted }}>Cancel</Text>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setAddGoalModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btnSave, { backgroundColor: colors.primary }]} onPress={handleSaveGoal}>
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Create</Text>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveGoal}>
+                <Text style={styles.modalSaveBtnText}>Create Goal</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -823,303 +803,437 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  tabBar: {
-    height: 48,
-    borderBottomWidth: 0.5,
-  },
-  tabScroll: {
-    paddingHorizontal: 12,
-  },
-  tabButton: {
-    paddingHorizontal: 16,
-    height: '100%',
-    justifyContent: 'center',
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    fontFamily: 'SpaceGrotesk_700Bold',
-  },
   scrollContainer: {
-    padding: 20,
+    padding: 24,
     paddingBottom: 40,
   },
-  kpiCard: {
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-    marginBottom: 20,
-  },
-  kpiLabel: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    fontWeight: 'bold',
-  },
-  kpiValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    fontFamily: 'Outfit_700Bold',
-    marginVertical: 6,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  trendBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  quickActions: {
+  welcomeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  actionBtn: {
-    flex: 1,
-    height: 72,
-    borderWidth: 1,
-    borderRadius: 12,
-    marginHorizontal: 4,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    marginTop: 4,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  statsCard: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginHorizontal: 4,
-  },
-  statsValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginVertical: 4,
-  },
-  statsSubtext: {
-    fontSize: 9,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    fontFamily: 'SpaceGrotesk_700Bold',
-    marginBottom: 12,
-  },
-  insightsSection: {
     marginBottom: 24,
   },
-  insightsScroll: {
-    paddingRight: 20,
+  welcomeDate: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+    fontFamily: 'Inter_500Medium',
   },
-  insightCard: {
-    width: 240,
-    padding: 16,
-    borderRadius: 12,
+  welcomeName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: 'Outfit_700Bold',
+    marginTop: 2,
+  },
+  avatarFrame: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  avatarEmoji: {
+    fontSize: 22,
+  },
+  wealthCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
     borderWidth: 1,
-    marginRight: 12,
+    borderColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.03,
+    shadowRadius: 16,
+    elevation: 3,
+    marginBottom: 24,
   },
-  insightHeader: {
+  wealthCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  spendingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  spendingLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  increaseChip: {
+    backgroundColor: '#FFEBEB',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  increaseChipText: {
+    fontSize: 10,
+    color: '#EF4444',
+    fontWeight: 'bold',
+  },
+  spendingAmount: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#0F172A',
+    fontFamily: 'Outfit_700Bold',
+    marginTop: 6,
+  },
+  detailsLink: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 4,
+  },
+  dotMatrixContainer: {
+    marginTop: 8,
+  },
+  chartLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  chartLabelText: {
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  subNavigation: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    padding: 4,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  subTabBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  subTabBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  subTabText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  subTabBtnActive_Text: {},
+  subTabTextActive: {
+    color: '#0F172A',
+  },
+  widgetsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  widgetCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    marginHorizontal: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  widgetLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#64748B',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  ringContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    height: 110,
+  },
+  ringOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
+  ringValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0F172A',
+  },
+  ringDays: {
+    fontSize: 8,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  cashSumItem: {
+    flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  insightBody: {
+  cashSumDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 8,
+  },
+  cashSumLabel: {
+    fontSize: 9,
+    color: '#64748B',
+  },
+  cashSumVal: {
     fontSize: 12,
-    lineHeight: 18,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    marginTop: 1,
   },
-  timelineSection: {
-    marginBottom: 20,
+  logSpendQuickBtn: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    borderWidth: 0.5,
+    borderColor: '#E2E8F0',
   },
-  timelineContainer: {
-    borderRadius: 16,
+  logSpendQuickText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#00D166',
+  },
+  transactionsSection: {
+    marginTop: 8,
+  },
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    fontFamily: 'SpaceGrotesk_700Bold',
+    marginBottom: 12,
+  },
+  filterScroll: {
+    paddingBottom: 12,
+  },
+  filterChip: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  filterChipActive: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    paddingVertical: 8,
+    borderColor: '#E2E8F0',
   },
-  timelineItem: {
+  filterChipText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: '#111827',
+    fontWeight: 'bold',
+  },
+  transactionsList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  transRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#F8FAFC',
   },
-  timelineIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 12,
+  transLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  timelineContent: {
-    flex: 1,
+  transMeta: {
+    marginLeft: 12,
   },
-  timelineTitle: {
+  transTitle: {
     fontSize: 13,
     fontWeight: '600',
+    color: '#1F2937',
   },
-  timelineMeta: {
+  transDate: {
     fontSize: 10,
+    color: '#94A3B8',
     marginTop: 2,
   },
-  timelineAmount: {
+  transAmount: {
     fontSize: 13,
     fontWeight: 'bold',
   },
-  rowItem: {
+  emptyText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  defaultIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accountsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 10,
   },
-  rowTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  rowSub: {
-    fontSize: 10,
-    marginTop: 2,
-  },
-  rowValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  ledgerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  miniBtn: {
+  accountsAddBtn: {
+    backgroundColor: '#E8F9EE',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
-  ledgerRow: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+  accountsAddBtnText: {
+    fontSize: 11,
+    color: '#00D166',
+    fontWeight: 'bold',
+  },
+  accountRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
     marginBottom: 10,
   },
-  ledgerLeft: {
-    flex: 1,
-  },
-  ledgerRight: {
-    alignItems: 'flex-end',
-  },
-  ledgerCategory: {
+  accountName: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#1F2937',
   },
-  ledgerNotes: {
-    fontSize: 11,
+  accountType: {
+    fontSize: 9,
+    color: '#94A3B8',
     marginTop: 2,
   },
-  ledgerDate: {
-    fontSize: 9,
-    marginTop: 4,
-  },
-  ledgerAmount: {
+  accountBalance: {
     fontSize: 14,
     fontWeight: 'bold',
+    color: '#1F2937',
   },
-  goalCard: {
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 16,
-    borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 12,
+    borderColor: '#F1F5F9',
   },
-  goalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  progressBarTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  goalMeta: {
-    fontSize: 9,
-  },
-  scoreContainer: {
-    height: 180,
-    width: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 20,
-  },
-  healthMetrics: {
-    width: '100%',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 20,
-  },
-  healthHeading: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  metricRow: {
+  summaryItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 8,
   },
-  metricLabel: {
+  summaryLabel: {
     fontSize: 12,
+    color: '#64748B',
   },
-  metricVal: {
+  summaryValue: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#1F2937',
   },
-  badgesContainer: {
+  summaryDivider: {
+    height: 0.5,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 4,
+  },
+  goalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    marginBottom: 12,
+  },
+  goalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
+    marginBottom: 8,
   },
-  badgeItem: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginHorizontal: 4,
-    alignItems: 'center',
+  goalName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
   },
-  badgeName: {
+  goalProgressVal: {
     fontSize: 12,
     fontWeight: 'bold',
-    marginTop: 6,
+    color: '#1F2937',
   },
-  badgeSub: {
-    fontSize: 9,
-    textAlign: 'center',
+  progressTrack: {
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#F1F5F9',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2.5,
+    backgroundColor: '#00D166',
+  },
+  healthCircleBox: {
+    height: 160,
+    width: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginVertical: 24,
+  },
+  healthOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+  },
+  healthScoreVal: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#0F172A',
+  },
+  healthScoreMax: {
+    fontSize: 10,
+    color: '#00D166',
+    fontWeight: 'bold',
     marginTop: 2,
   },
   modalOverlay: {
@@ -1128,74 +1242,91 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    padding: 24,
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    padding: 24,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+    color: '#0F172A',
     marginBottom: 16,
   },
-  typeToggle: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  toggleBtn: {
-    flex: 1,
-    height: 38,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  input: {
+  modalInput: {
     height: 48,
     borderWidth: 1,
-    borderRadius: 10,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
     paddingHorizontal: 12,
     marginBottom: 12,
     fontSize: 14,
+    color: '#0F172A',
   },
-  inputLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  pickerRow: {
+  pickerGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginVertical: 4,
+    marginBottom: 16,
   },
-  chip: {
+  modalChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 0.5,
-    borderColor: 'rgba(128,128,128,0.3)',
+    borderColor: '#E2E8F0',
     marginRight: 8,
     marginBottom: 8,
+  },
+  modalChipActive: {
+    backgroundColor: '#E8F9EE',
+    borderColor: '#00D166',
+  },
+  modalChipText: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  modalChipTextActive: {
+    color: '#00D166',
+    fontWeight: 'bold',
   },
   modalBtnRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 8,
   },
-  btnCancel: {
+  modalCancelBtn: {
     flex: 1,
-    height: 48,
+    height: 44,
     borderRadius: 10,
     borderWidth: 1,
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
   },
-  btnSave: {
+  modalCancelBtnText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  modalSaveBtn: {
     flex: 2,
-    height: 48,
+    height: 44,
     borderRadius: 10,
+    backgroundColor: '#111827',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 6,
+  },
+  modalSaveBtnText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  inputLabel: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#94A3B8',
+    marginBottom: 6,
   },
 });
