@@ -201,15 +201,6 @@ export default function AppShell() {
       {/* Simulated OS Top Status Bar */}
       <View style={[styles.statusBar, { borderBottomColor: colors.border }]}>
         <View style={styles.statusBarLeft}>
-          {currentModule !== 'launcher' && (
-            <TouchableOpacity
-              onPress={() => setIsMenuOpen(!isMenuOpen)}
-              style={styles.menuToggleButton}
-              activeOpacity={0.7}
-            >
-              <Text style={{ fontSize: 16, color: colors.primary, marginRight: 6 }}>☰</Text>
-            </TouchableOpacity>
-          )}
           <Text style={[styles.statusBarTime, { color: colors.text }]}>{time}</Text>
         </View>
         <View style={styles.statusBarRight}>
@@ -223,6 +214,26 @@ export default function AppShell() {
           )}
           <Text style={[styles.statusBarText, { color: colors.text }]}>📶 🔋 88%</Text>
         </View>
+      </View>
+
+      {/* Unified Navigation Header Bar (Present on every module page!) */}
+      <View style={[styles.headerBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          onPress={() => setIsMenuOpen(!isMenuOpen)}
+          style={styles.headerMenuButton}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 20, color: colors.primary, fontWeight: 'bold' }}>☰</Text>
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          {currentModule === 'launcher' ? 'LifeOS Dashboard' : currentModule.charAt(0).toUpperCase() + currentModule.slice(1)}
+        </Text>
+        <TouchableOpacity 
+          onPress={() => setCurrentModule(currentModule === 'settings' ? 'launcher' : 'settings')}
+          style={styles.headerMenuButton}
+        >
+          <Text style={{ fontSize: 18 }}>{currentModule === 'settings' ? '🏠' : '⚙️'}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Module Content */}
@@ -447,12 +458,28 @@ const styles = StyleSheet.create({
   },
   menuOverlay: {
     position: 'absolute',
-    top: 36,
+    top: 84,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     zIndex: 9999,
+  },
+  headerBar: {
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 0.5,
+  },
+  headerMenuButton: {
+    padding: 6,
+  },
+  headerTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    fontFamily: 'SpaceGrotesk_700Bold',
   },
   menuDropdown: {
     position: 'absolute',
