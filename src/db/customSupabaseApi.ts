@@ -2,7 +2,7 @@
 // Bypasses the need for @supabase/supabase-js library
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://pbpuxjbojeootjnzzphl.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBicHV4amJvamVvb3Rqbnp6cGhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTE4MzQsImV4cCI6MjA5ODEyNzgzNH0.kUi6ua8YV6VVlsCKrXMrICkP3cYgjZmj3-VRLZF_tqE';
 
 const getHeaders = () => {
   return {
