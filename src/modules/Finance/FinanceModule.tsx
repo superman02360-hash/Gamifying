@@ -17,6 +17,13 @@ import Svg, { Path, Circle, Rect, Text as SvgText, Line, Defs, LinearGradient, S
 import { useTheme } from '../../context/ThemeContext';
 import { database, Transaction, Account, Asset, generateUUID } from '../../db/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  HomeIcon,
+  TransactionsIcon,
+  AccountsIcon,
+  GoalsIcon,
+  HealthScoreIcon,
+} from '../../components/SVGIcons';
 
 const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - 48;
@@ -841,27 +848,27 @@ export default function FinanceModule() {
       {/* Premium Finance Bottom Tab Bar */}
       <View style={styles.bottomTabBar}>
         <TouchableOpacity style={[styles.tabBarItem, activeTab === 'dashboard' && styles.tabBarItemActive]} onPress={() => setActiveTab('dashboard')}>
-          <Text style={[styles.tabBarIcon, activeTab === 'dashboard' && styles.tabBarIconActive]}>🏠</Text>
+          <HomeIcon size={20} color={activeTab === 'dashboard' ? '#00D166' : '#94A3B8'} />
           <Text style={[styles.tabBarLabel, activeTab === 'dashboard' && styles.tabBarLabelActive]}>Hub</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={[styles.tabBarItem, activeTab === 'transactions' && styles.tabBarItemActive]} onPress={() => setActiveTab('transactions')}>
-          <Text style={[styles.tabBarIcon, activeTab === 'transactions' && styles.tabBarIconActive]}>📝</Text>
+          <TransactionsIcon size={20} color={activeTab === 'transactions' ? '#00D166' : '#94A3B8'} />
           <Text style={[styles.tabBarLabel, activeTab === 'transactions' && styles.tabBarLabelActive]}>Txns</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.tabBarItem, activeTab === 'accounts' && styles.tabBarItemActive]} onPress={() => setActiveTab('accounts')}>
-          <Text style={[styles.tabBarIcon, activeTab === 'accounts' && styles.tabBarIconActive]}>💳</Text>
+          <AccountsIcon size={20} color={activeTab === 'accounts' ? '#00D166' : '#94A3B8'} />
           <Text style={[styles.tabBarLabel, activeTab === 'accounts' && styles.tabBarLabelActive]}>Accounts</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.tabBarItem, activeTab === 'goals' && styles.tabBarItemActive]} onPress={() => setActiveTab('goals')}>
-          <Text style={[styles.tabBarIcon, activeTab === 'goals' && styles.tabBarIconActive]}>🎯</Text>
+          <GoalsIcon size={20} color={activeTab === 'goals' ? '#00D166' : '#94A3B8'} />
           <Text style={[styles.tabBarLabel, activeTab === 'goals' && styles.tabBarLabelActive]}>Goals</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.tabBarItem, activeTab === 'health' && styles.tabBarItemActive]} onPress={() => setActiveTab('health')}>
-          <Text style={[styles.tabBarIcon, activeTab === 'health' && styles.tabBarIconActive]}>📈</Text>
+          <HealthScoreIcon size={20} color={activeTab === 'health' ? '#00D166' : '#94A3B8'} />
           <Text style={[styles.tabBarLabel, activeTab === 'health' && styles.tabBarLabelActive]}>Health</Text>
         </TouchableOpacity>
       </View>

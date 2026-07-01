@@ -21,6 +21,17 @@ import HabitsModule from './modules/Habits/HabitsModule';
 import HealthModule from './modules/Health/HealthModule';
 import SettingsModule from './modules/Settings/SettingsModule';
 
+// Import icons
+import {
+  HomeIcon,
+  FinanceIcon,
+  BodyIcon,
+  KnowledgeIcon,
+  HabitsIcon,
+  HealthIcon,
+  SettingsIcon,
+} from './components/SVGIcons';
+
 const { width } = Dimensions.get('window');
 
 export type ModuleType =
@@ -43,14 +54,27 @@ export default function AppShell() {
   const [pinError, setPinError] = useState<boolean>(false);
 
   const menuItems = [
-    { id: 'launcher' as ModuleType, label: 'Home Launcher', icon: '🏠' },
-    { id: 'finance' as ModuleType, label: 'Finance (Wealth)', icon: '💰' },
-    { id: 'body' as ModuleType, label: 'Body (Fitness)', icon: '💪' },
-    { id: 'knowledge' as ModuleType, label: 'Knowledge (Recall)', icon: '📚' },
-    { id: 'habits' as ModuleType, label: 'Habits (Checklist)', icon: '🌙' },
-    { id: 'health' as ModuleType, label: 'Health (Medical)', icon: '🏥' },
-    { id: 'settings' as ModuleType, label: 'Settings & Sync', icon: '⚙️' },
+    { id: 'launcher' as ModuleType, label: 'Home Launcher' },
+    { id: 'finance' as ModuleType, label: 'Finance (Wealth)' },
+    { id: 'body' as ModuleType, label: 'Body (Fitness)' },
+    { id: 'knowledge' as ModuleType, label: 'Knowledge (Recall)' },
+    { id: 'habits' as ModuleType, label: 'Habits (Checklist)' },
+    { id: 'health' as ModuleType, label: 'Health (Medical)' },
+    { id: 'settings' as ModuleType, label: 'Settings & Sync' },
   ];
+
+  const renderMenuIcon = (id: ModuleType, color: string) => {
+    switch (id) {
+      case 'launcher': return <HomeIcon size={18} color={color} />;
+      case 'finance': return <FinanceIcon size={18} color={color} />;
+      case 'body': return <BodyIcon size={18} color={color} />;
+      case 'knowledge': return <KnowledgeIcon size={18} color={color} />;
+      case 'habits': return <HabitsIcon size={18} color={color} />;
+      case 'health': return <HealthIcon size={18} color={color} />;
+      case 'settings': return <SettingsIcon size={18} color={color} />;
+      default: return null;
+    }
+  };
   const [time, setTime] = useState<string>('00:00');
   const [date, setDate] = useState<string>('');
 
@@ -230,9 +254,13 @@ export default function AppShell() {
         </Text>
         <TouchableOpacity 
           onPress={() => setCurrentModule(currentModule === 'settings' ? 'launcher' : 'settings')}
-          style={styles.headerMenuButton}
+          style={[styles.headerMenuButton, { justifyContent: 'center', alignItems: 'center' }]}
         >
-          <Text style={{ fontSize: 18 }}>{currentModule === 'settings' ? '🏠' : '⚙️'}</Text>
+          {currentModule === 'settings' ? (
+            <HomeIcon size={18} color={colors.primary} />
+          ) : (
+            <SettingsIcon size={18} color={colors.primary} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -281,7 +309,9 @@ export default function AppShell() {
                   setIsMenuOpen(false);
                 }}
               >
-                <Text style={styles.menuItemIcon}>{item.icon}</Text>
+                <View style={{ marginRight: 12 }}>
+                  {renderMenuIcon(item.id, currentModule === item.id ? colors.primary : colors.textMuted)}
+                </View>
                 <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
                 {currentModule === item.id && (
                   <Text style={[styles.menuActiveIndicator, { color: colors.primary }]}>●</Text>
