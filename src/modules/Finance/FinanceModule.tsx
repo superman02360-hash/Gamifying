@@ -443,7 +443,7 @@ export default function FinanceModule() {
   return (
     <View style={[styles.container, { backgroundColor: '#F8FAFC' }]}>
       {/* Scrollable Container */}
-      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scrollContainer, { paddingBottom: 80 }]} keyboardShouldPersistTaps="handled">
         
         {/* Welcome Greeting Header (Exactly like screenshot) */}
         <View style={styles.welcomeHeader}>
@@ -1585,6 +1585,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingBottom: 4,
+    zIndex: 1000,
+    elevation: 10,
   },
   tabBarItem: {
     alignItems: 'center',
