@@ -172,7 +172,7 @@ export default function FinanceModule() {
 
   // Forms
   const [amount, setAmount] = useState('');
-  const [transType, setTransType] = useState<'income' | 'expense'>('expense');
+  const [transType, setTransType] = useState<'income' | 'expense' | 'investment'>('expense');
   const [category, setCategory] = useState('Food');
   const [paymentMethod, setPaymentMethod] = useState('Debit Card');
   const [notes, setNotes] = useState('');
@@ -315,7 +315,7 @@ export default function FinanceModule() {
 
     await database.saveTransaction(newTrans);
 
-    // Update balance
+    // Update balance (investments also deduct from wallet like expenses)
     const targetAcc = accounts.find(a => a.id === newTrans.account_id);
     if (targetAcc) {
       const updatedBal = transType === 'income' 
@@ -421,11 +421,14 @@ export default function FinanceModule() {
 
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
   const monthTrans = transactions.filter(t => t.date.startsWith(currentMonth));
-  const monthlyExpense = monthTrans.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  // Investments count as expenses in the monthly cash flow view
+  const monthlyExpense = monthTrans.filter(t => t.type === 'expense' || t.type === 'investment').reduce((sum, t) => sum + t.amount, 0);
+  const monthlyInvestment = monthTrans.filter(t => t.type === 'investment').reduce((sum, t) => sum + t.amount, 0);
+  const monthlySpending = monthTrans.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const monthlyIncome = monthTrans.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpense) / monthlyIncome) * 100 : 0;
 
-  // Safe-To-Spend Daily (Cash Flow Surplus / Days Remaining)
+  // Safe-To-Spend Daily (Cash Flow Surplus / Days Remaining) — investments already subtracted
   const daysLeft = 30 - new Date().getDate() || 1;
   const monthlySurplus = monthlyIncome - monthlyExpense;
   const safeToSpend = Math.max(0, monthlySurplus / daysLeft);
@@ -654,8 +657,8 @@ export default function FinanceModule() {
                           <Text style={styles.transDate}>{t.date}</Text>
                         </View>
                       </View>
-                      <Text style={[styles.transAmount, { color: t.type === 'income' ? '#00D166' : '#E11D48' }]}>
-                        {t.type === 'income' ? '+' : '-'}₹{t.amount.toFixed(2)}
+                      <Text style={[styles.transAmount, { color: t.type === 'income' ? '#00D166' : t.type === 'investment' ? '#6366F1' : '#E11D48' }]}>
+                        {t.type === 'income' ? '+' : '-'}{t.type === 'investment' ? '📈 ' : ''}₹{t.amount.toFixed(2)}
                       </Text>
                     </View>
                   );
@@ -783,7 +786,7 @@ export default function FinanceModule() {
                         <Text style={styles.transDate}>{t.date}</Text>
                       </View>
                     </View>
-                    <Text style={[styles.transAmount, { color: t.type === 'income' ? '#00D166' : '#E11D48' }]}>
+                    <Text style={[styles.transAmount, { color: t.type === 'income' ? '#00D166' : t.type === 'investment' ? '#6366F1' : '#E11D48' }]}>
                       {t.type === 'income' ? '+' : '-'}₹{t.amount.toFixed(2)}
                     </Text>
                   </View>
@@ -1013,6 +1016,18 @@ export default function FinanceModule() {
               <TouchableOpacity
                 style={[
                   styles.segmentButton,
+                  transType === 'investment' && { backgroundColor: '#6366F1', borderColor: '#6366F1' }
+                ]}
+                onPress={() => {
+                  setTransType('investment');
+                  setCategory('Mutual Fund');
+                }}
+              >
+                <Text style={[styles.segmentText, transType === 'investment' && styles.segmentTextActive]}>Investment</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
                   transType === 'income' && { backgroundColor: '#00D166', borderColor: '#00D166' }
                 ]}
                 onPress={() => {
@@ -1041,7 +1056,9 @@ export default function FinanceModule() {
 
             <View style={styles.pickerGrid}>
               {(transType === 'income' 
-                ? ['Salary', 'Investment', 'Freelance', 'Other']
+                ? ['Salary', 'Freelance', 'Other']
+                : transType === 'investment'
+                ? ['Mutual Fund', 'Stocks', 'Fixed Deposit', 'Gold', 'Crypto', 'Other']
                 : ['Food', 'Entertainment', 'Subscription', 'Transportation', 'Other']
               ).map(cat => (
                 <TouchableOpacity

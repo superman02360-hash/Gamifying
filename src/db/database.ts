@@ -18,7 +18,7 @@ export interface Transaction {
   account_id?: string;
   date: string; // YYYY-MM-DD
   amount: number;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   category: string;
   payment_method?: string;
   notes?: string;
