@@ -118,6 +118,27 @@ export default function FinanceModule() {
 
   // Profile State
   const [profileName, setProfileName] = useState('John');
+  const [currentTime, setCurrentTime] = useState('');
+  const [welcomeDate, setWelcomeDate] = useState('');
+
+  // Clock Update
+  useEffect(() => {
+    const updateDateTime = () => {
+      const d = new Date();
+      const hh = d.getHours().toString().padStart(2, '0');
+      const mm = d.getMinutes().toString().padStart(2, '0');
+      setCurrentTime(`${hh}:${mm}`);
+
+      const day = d.getDate();
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      setWelcomeDate(`${day} ${month} ${year}`);
+    };
+    updateDateTime();
+    const timer = setInterval(updateDateTime, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Active Tab View
   const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'goals' | 'health'>('dashboard');
@@ -427,8 +448,11 @@ export default function FinanceModule() {
         {/* Welcome Greeting Header (Exactly like screenshot) */}
         <View style={styles.welcomeHeader}>
           <View>
-            <Text style={styles.welcomeDate}>26 May 2026</Text>
+            <Text style={styles.welcomeDate}>{welcomeDate || '26 May 2026'}</Text>
             <Text style={styles.welcomeName}>Good morning, {profileName}!</Text>
+            {currentTime ? (
+              <Text style={styles.welcomeTime}>{currentTime}</Text>
+            ) : null}
           </View>
           {/* Avatar frame */}
           <View style={styles.avatarFrame}>
@@ -1417,5 +1441,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#00D166',
     fontWeight: 'bold',
+  },
+  welcomeTime: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+    marginTop: 2,
   },
 });

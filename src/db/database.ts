@@ -182,11 +182,15 @@ const KEYS = {
   USER_PROFILE: '@LifeOS:user_profile',
 };
 
-// Helper: load local storage item
 async function getLocal<T>(key: string, defaultValue: T): Promise<T> {
   try {
     const raw = await AsyncStorage.getItem(key);
-    return raw ? JSON.parse(raw) : defaultValue;
+    if (!raw) return defaultValue;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(defaultValue) && !Array.isArray(parsed)) {
+      return [parsed] as unknown as T;
+    }
+    return parsed;
   } catch (e) {
     console.error(`Failed to load local key ${key}:`, e);
     return defaultValue;
@@ -531,7 +535,7 @@ export const database = {
   },
   async saveUserProfile(profile: UserProfile): Promise<UserProfile> {
     const list = await this.getAll<UserProfile>(KEYS.USER_PROFILE, 'user_profiles');
-    if (list.length > 0) {
+    if (list.length > 0 && list[0].id) {
       profile.id = list[0].id;
     } else {
       if (!profile.id) profile.id = generateUUID();
