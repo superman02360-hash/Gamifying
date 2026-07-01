@@ -115,6 +115,9 @@ const DefaultTransIcon = (cat: string) => {
 export default function FinanceModule() {
   const { colors } = useTheme();
 
+  // Profile State
+  const [profileName, setProfileName] = useState('John');
+
   // Active Tab View
   const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'goals' | 'health'>('dashboard');
 
@@ -228,6 +231,13 @@ export default function FinanceModule() {
         ];
         await AsyncStorage.setItem('@LifeOS:goals_v2', JSON.stringify(defaultGoals));
         setGoals(defaultGoals);
+      }
+
+      // Load user profile
+      const storedProfile = await AsyncStorage.getItem('@LifeOS:user_profile');
+      if (storedProfile) {
+        const profile = JSON.parse(storedProfile);
+        setProfileName(profile.name || 'John');
       }
     } catch (e) {
       console.error(e);
@@ -405,7 +415,7 @@ export default function FinanceModule() {
         <View style={styles.welcomeHeader}>
           <View>
             <Text style={styles.welcomeDate}>26 May 2026</Text>
-            <Text style={styles.welcomeName}>Good morning, John!</Text>
+            <Text style={styles.welcomeName}>Good morning, {profileName}!</Text>
           </View>
           {/* Avatar frame */}
           <View style={styles.avatarFrame}>

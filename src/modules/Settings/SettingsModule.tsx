@@ -14,11 +14,43 @@ import { useTheme, ThemeType } from '../../context/ThemeContext';
 import { useSecurity } from '../../context/SecurityContext';
 import { useSync } from '../../context/SyncContext';
 import { database } from '../../db/database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsModule() {
   const { colors, theme, setTheme } = useTheme();
   const { hasPin, setPin } = useSecurity();
   const { isSyncEnabled, isSyncing, lastSynced, toggleSync, triggerSync } = useSync();
+
+  // Form State - Personal Profile
+  const [userName, setUserName] = useState('John');
+  const [dailyLimit, setDailyLimit] = useState('500');
+
+  // Load profile
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@LifeOS:user_profile');
+        if (stored) {
+          const profile = JSON.parse(stored);
+          setUserName(profile.name || 'John');
+          setDailyLimit(profile.dailyLimit || '500');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadProfile();
+  }, []);
+
+  const handleSaveProfile = async () => {
+    try {
+      const profile = { name: userName.trim(), dailyLimit: dailyLimit.trim() };
+      await AsyncStorage.setItem('@LifeOS:user_profile', JSON.stringify(profile));
+      Alert.alert('Success', 'Personal profile updated!');
+    } catch (e) {
+      Alert.alert('Error', 'Failed to save profile.');
+    }
+  };
 
   // Modal control
   const [pinModalVisible, setPinModalVisible] = useState(false);
@@ -107,6 +139,40 @@ export default function SettingsModule() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {/* Personal Profile Settings Card */}
+        <View style={[styles.sectionContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Personal Profile</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            Update your personal details visible across LifeOS.
+          </Text>
+
+          <Text style={[styles.inputLabel, { color: colors.textMuted }]}>FULL NAME</Text>
+          <TextInput
+            style={[styles.profileInput, { color: colors.text, borderColor: colors.border }]}
+            value={userName}
+            onChangeText={setUserName}
+            placeholder="e.g. John"
+            placeholderTextColor={colors.textMuted}
+          />
+
+          <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 8 }]}>DAILY BUDGET LIMIT (₹)</Text>
+          <TextInput
+            style={[styles.profileInput, { color: colors.text, borderColor: colors.border }]}
+            value={dailyLimit}
+            onChangeText={setDailyLimit}
+            placeholder="e.g. 500"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="numeric"
+          />
+
+          <TouchableOpacity
+            style={[styles.saveProfileBtn, { backgroundColor: colors.primary }]}
+            onPress={handleSaveProfile}
+          >
+            <Text style={styles.saveProfileBtnText}>Save Profile</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Theme Settings */}
         <View style={[styles.sectionContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance Theme</Text>
@@ -489,5 +555,31 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  inputLabel: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  profileInput: {
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  saveProfileBtn: {
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  saveProfileBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
 });
