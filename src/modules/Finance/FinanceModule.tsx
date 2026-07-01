@@ -141,7 +141,7 @@ export default function FinanceModule() {
   }, []);
 
   // Active Tab View
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts' | 'goals' | 'health'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'accounts' | 'goals' | 'health'>('dashboard');
 
   // Transactions category filter chip
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
@@ -484,22 +484,6 @@ export default function FinanceModule() {
               {renderDotMatrixChart()}
             </View>
 
-            {/* Sub-tab navigation buttons inside dashboard */}
-            <View style={styles.subNavigation}>
-              <TouchableOpacity style={[styles.subTabBtn, activeTab === 'dashboard' && styles.subTabBtnActive]} onPress={() => setActiveTab('dashboard')}>
-                <Text style={[styles.subTabText, activeTab === 'dashboard' && styles.subTabTextActive]}>Overview</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.subTabBtn} onPress={() => setActiveTab('accounts')}>
-                <Text style={styles.subTabText}>Accounts</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.subTabBtn} onPress={() => setActiveTab('goals')}>
-                <Text style={styles.subTabText}>Goals</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.subTabBtn} onPress={() => setTransferModal(true)}>
-                <Text style={styles.subTabText}>Transfer</Text>
-              </TouchableOpacity>
-            </View>
-
             {/* Safe to Spend & Income widgets (from second screenshot) */}
             <View style={styles.widgetsGrid}>
               {/* Safe to Spend Ring Widget */}
@@ -554,36 +538,63 @@ export default function FinanceModule() {
               </View>
             </View>
 
-            {/* All your transaction section (Exactly like screenshot) */}
-            <View style={styles.transactionsSection}>
-              <Text style={styles.sectionHeading}>All your transactions</Text>
-              
-              {/* Category Filter Chips */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-                {CATEGORIES.map(chip => (
-                  <TouchableOpacity
-                    key={chip}
-                    style={[
-                      styles.filterChip,
-                      selectedCategoryFilter === chip && styles.filterChipActive
-                    ]}
-                    onPress={() => setSelectedCategoryFilter(chip)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        selectedCategoryFilter === chip && styles.filterChipTextActive
-                      ]}
-                    >
-                      {chip}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+            {/* Glimpse of Accounts */}
+            <View style={styles.glimpseCard}>
+              <View style={styles.glimpseHeader}>
+                <Text style={styles.glimpseTitle}>My Wallets & Balances</Text>
+                <TouchableOpacity onPress={() => setActiveTab('accounts')}>
+                  <Text style={styles.glimpseLink}>Manage ➔</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.glimpseRow}>
+                <Text style={styles.glimpseLabel}>Liquid Net Worth</Text>
+                <Text style={[styles.glimpseValue, { color: '#00D166' }]}>₹{netWorth.toFixed(2)}</Text>
+              </View>
+              {accounts.slice(0, 2).map(acc => (
+                <View key={acc.id} style={styles.glimpseSubRow}>
+                  <Text style={styles.glimpseSubLabel}>{acc.name}</Text>
+                  <Text style={styles.glimpseSubVal}>₹{acc.balance.toFixed(2)}</Text>
+                </View>
+              ))}
+            </View>
 
-              {/* Transaction Lists Grid with brand icons */}
-              <View style={styles.transactionsList}>
-                {filteredTransactions.map(t => {
+            {/* Glimpse of Goals */}
+            <View style={styles.glimpseCard}>
+              <View style={styles.glimpseHeader}>
+                <Text style={styles.glimpseTitle}>Savings Wealth Targets</Text>
+                <TouchableOpacity onPress={() => setActiveTab('goals')}>
+                  <Text style={styles.glimpseLink}>Track ➔</Text>
+                </TouchableOpacity>
+              </View>
+              {goals.slice(0, 1).map(goal => {
+                const progress = Math.min(1, goal.current / goal.target);
+                return (
+                  <View key={goal.id} style={{ marginTop: 4 }}>
+                    <View style={styles.glimpseGoalRow}>
+                      <Text style={styles.glimpseGoalName}>{goal.name}</Text>
+                      <Text style={styles.glimpseGoalProgress}>₹{goal.current} / ₹{goal.target}</Text>
+                    </View>
+                    <View style={styles.progressTrack}>
+                      <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+                    </View>
+                  </View>
+                );
+              })}
+              {goals.length === 0 && (
+                <Text style={styles.emptyText}>No goals set yet.</Text>
+              )}
+            </View>
+
+            {/* Glimpse of Recent Transactions */}
+            <View style={styles.glimpseCard}>
+              <View style={styles.glimpseHeader}>
+                <Text style={styles.glimpseTitle}>Recent Transactions</Text>
+                <TouchableOpacity onPress={() => setActiveTab('transactions')}>
+                  <Text style={styles.glimpseLink}>View All ➔</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ marginTop: 4 }}>
+                {transactions.slice(0, 3).map(t => {
                   let isBrand = false;
                   let IconComponent = null;
 
@@ -613,9 +624,8 @@ export default function FinanceModule() {
                     </View>
                   );
                 })}
-
-                {filteredTransactions.length === 0 && (
-                  <Text style={styles.emptyText}>No matching transaction found.</Text>
+                {transactions.length === 0 && (
+                  <Text style={styles.emptyText}>No transactions logged.</Text>
                 )}
               </View>
             </View>
@@ -631,9 +641,14 @@ export default function FinanceModule() {
             </TouchableOpacity>
             <View style={styles.accountsHeader}>
               <Text style={styles.sectionHeading}>Wallets & Accounts</Text>
-              <TouchableOpacity style={styles.accountsAddBtn} onPress={() => setAddAccModal(true)}>
-                <Text style={styles.accountsAddBtnText}>+ Add</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row' }}>
+                <TouchableOpacity style={[styles.accountsAddBtn, { marginRight: 8 }]} onPress={() => setTransferModal(true)}>
+                  <Text style={styles.accountsAddBtnText}>Transfer</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.accountsAddBtn} onPress={() => setAddAccModal(true)}>
+                  <Text style={styles.accountsAddBtnText}>+ Add</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {accounts.map(acc => (
@@ -661,6 +676,87 @@ export default function FinanceModule() {
                 <Text style={[styles.summaryLabel, { fontWeight: 'bold', color: '#111827' }]}>Net Worth valuation</Text>
                 <Text style={[styles.summaryValue, { color: '#00D166', fontWeight: 'bold' }]}>₹{netWorth.toFixed(2)}</Text>
               </View>
+            </View>
+          </View>
+        )}
+
+        {/* Tab 5: Transactions History */}
+        {activeTab === 'transactions' && (
+          <View>
+            <TouchableOpacity onPress={() => setActiveTab('dashboard')} style={styles.backHeaderBtn} activeOpacity={0.7}>
+              <Text style={styles.backHeaderBtnText}>← Back to Dashboard</Text>
+            </TouchableOpacity>
+
+            <View style={styles.accountsHeader}>
+              <Text style={styles.sectionHeading}>Transaction History</Text>
+              <TouchableOpacity style={styles.accountsAddBtn} onPress={() => setAddTransModal(true)}>
+                <Text style={styles.accountsAddBtnText}>+ Log</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Filter chips scroll list */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingRight: 24, marginBottom: 16 }}
+            >
+              {CATEGORIES.map(chip => (
+                <TouchableOpacity
+                  key={chip}
+                  style={[
+                    styles.filterChip,
+                    selectedCategoryFilter === chip && styles.filterChipActive
+                  ]}
+                  onPress={() => setSelectedCategoryFilter(chip)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      selectedCategoryFilter === chip && styles.filterChipTextActive
+                    ]}
+                  >
+                    {chip}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Transaction Lists */}
+            <View style={styles.transactionsList}>
+              {filteredTransactions.map(t => {
+                let isBrand = false;
+                let IconComponent = null;
+
+                if (t.notes?.toLowerCase().includes('spotify')) {
+                  isBrand = true;
+                  IconComponent = <SpotifyIcon />;
+                } else if (t.notes?.toLowerCase().includes('claude')) {
+                  isBrand = true;
+                  IconComponent = <ClaudeIcon />;
+                } else if (t.notes?.toLowerCase().includes('bakery') || t.notes?.toLowerCase().includes('paypal')) {
+                  isBrand = true;
+                  IconComponent = <PayPalIcon />;
+                }
+
+                return (
+                  <View key={t.id} style={styles.transRow}>
+                    <View style={styles.transLeft}>
+                      {isBrand ? IconComponent : DefaultTransIcon(t.category)}
+                      <View style={styles.transMeta}>
+                        <Text style={styles.transTitle}>{t.notes || t.category}</Text>
+                        <Text style={styles.transDate}>{t.date}</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.transAmount, { color: t.type === 'income' ? '#00D166' : '#E11D48' }]}>
+                      {t.type === 'income' ? '+' : '-'}₹{t.amount.toFixed(2)}
+                    </Text>
+                  </View>
+                );
+              })}
+
+              {filteredTransactions.length === 0 && (
+                <Text style={styles.emptyText}>No matching transaction found.</Text>
+              )}
             </View>
           </View>
         )}
@@ -741,6 +837,34 @@ export default function FinanceModule() {
         )}
 
       </ScrollView>
+
+      {/* Premium Finance Bottom Tab Bar */}
+      <View style={styles.bottomTabBar}>
+        <TouchableOpacity style={[styles.tabBarItem, activeTab === 'dashboard' && styles.tabBarItemActive]} onPress={() => setActiveTab('dashboard')}>
+          <Text style={[styles.tabBarIcon, activeTab === 'dashboard' && styles.tabBarIconActive]}>🏠</Text>
+          <Text style={[styles.tabBarLabel, activeTab === 'dashboard' && styles.tabBarLabelActive]}>Hub</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={[styles.tabBarItem, activeTab === 'transactions' && styles.tabBarItemActive]} onPress={() => setActiveTab('transactions')}>
+          <Text style={[styles.tabBarIcon, activeTab === 'transactions' && styles.tabBarIconActive]}>📝</Text>
+          <Text style={[styles.tabBarLabel, activeTab === 'transactions' && styles.tabBarLabelActive]}>Txns</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.tabBarItem, activeTab === 'accounts' && styles.tabBarItemActive]} onPress={() => setActiveTab('accounts')}>
+          <Text style={[styles.tabBarIcon, activeTab === 'accounts' && styles.tabBarIconActive]}>💳</Text>
+          <Text style={[styles.tabBarLabel, activeTab === 'accounts' && styles.tabBarLabelActive]}>Accounts</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.tabBarItem, activeTab === 'goals' && styles.tabBarItemActive]} onPress={() => setActiveTab('goals')}>
+          <Text style={[styles.tabBarIcon, activeTab === 'goals' && styles.tabBarIconActive]}>🎯</Text>
+          <Text style={[styles.tabBarLabel, activeTab === 'goals' && styles.tabBarLabelActive]}>Goals</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.tabBarItem, activeTab === 'health' && styles.tabBarItemActive]} onPress={() => setActiveTab('health')}>
+          <Text style={[styles.tabBarIcon, activeTab === 'health' && styles.tabBarIconActive]}>📈</Text>
+          <Text style={[styles.tabBarLabel, activeTab === 'health' && styles.tabBarLabelActive]}>Health</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Modal: Log Spend */}
       <Modal visible={addTransModal} animationType="slide" transparent={true}>
@@ -1447,5 +1571,116 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '600',
     marginTop: 2,
+  },
+  bottomTabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingBottom: 4,
+  },
+  tabBarItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 6,
+  },
+  tabBarItemActive: {
+    backgroundColor: '#F8FAFC',
+  },
+  tabBarIcon: {
+    fontSize: 20,
+    color: '#94A3B8',
+  },
+  tabBarIconActive: {
+    color: '#00D166',
+  },
+  tabBarLabel: {
+    fontSize: 9,
+    color: '#94A3B8',
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+  tabBarLabelActive: {
+    color: '#00D166',
+  },
+  glimpseCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  glimpseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 8,
+  },
+  glimpseTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  glimpseLink: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#00D166',
+  },
+  glimpseRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  glimpseLabel: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  glimpseValue: {
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  glimpseSubRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    paddingLeft: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: '#E2E8F0',
+  },
+  glimpseSubLabel: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  glimpseSubVal: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  glimpseGoalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  glimpseGoalName: {
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '500',
+  },
+  glimpseGoalProgress: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
   },
 });
