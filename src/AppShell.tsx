@@ -38,8 +38,19 @@ export default function AppShell() {
   const { isSyncing, lastSynced } = useSync();
 
   const [currentModule, setCurrentModule] = useState<ModuleType>('launcher');
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<boolean>(false);
+
+  const menuItems = [
+    { id: 'launcher' as ModuleType, label: 'Home Launcher', icon: '🏠' },
+    { id: 'finance' as ModuleType, label: 'Finance (Wealth)', icon: '💰' },
+    { id: 'body' as ModuleType, label: 'Body (Fitness)', icon: '💪' },
+    { id: 'knowledge' as ModuleType, label: 'Knowledge (Recall)', icon: '📚' },
+    { id: 'habits' as ModuleType, label: 'Habits (Checklist)', icon: '🌙' },
+    { id: 'health' as ModuleType, label: 'Health (Medical)', icon: '🏥' },
+    { id: 'settings' as ModuleType, label: 'Settings & Sync', icon: '⚙️' },
+  ];
   const [time, setTime] = useState<string>('00:00');
   const [date, setDate] = useState<string>('');
 
@@ -190,6 +201,15 @@ export default function AppShell() {
       {/* Simulated OS Top Status Bar */}
       <View style={[styles.statusBar, { borderBottomColor: colors.border }]}>
         <View style={styles.statusBarLeft}>
+          {currentModule !== 'launcher' && (
+            <TouchableOpacity
+              onPress={() => setIsMenuOpen(!isMenuOpen)}
+              style={styles.menuToggleButton}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 16, color: colors.primary, marginRight: 6 }}>☰</Text>
+            </TouchableOpacity>
+          )}
           <Text style={[styles.statusBarTime, { color: colors.text }]}>{time}</Text>
         </View>
         <View style={styles.statusBarRight}>
@@ -208,22 +228,58 @@ export default function AppShell() {
       {/* Module Content */}
       <View style={styles.contentContainer}>{renderModule()}</View>
 
-      {/* OS Navigation Bar (Bottom Home Indicator Button) */}
-      <View style={[styles.navigationBar, { borderTopColor: colors.border, backgroundColor: colors.surface }]}>
-        {currentModule !== 'launcher' ? (
-          <TouchableOpacity
-            style={[styles.homeButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-            onPress={() => setCurrentModule('launcher')}
-          >
-            <View style={[styles.homeIcon, { backgroundColor: colors.textMuted }]} />
-            <Text style={[styles.homeText, { color: colors.text }]}>Home</Text>
-          </TouchableOpacity>
-        ) : (
+      {/* OS Navigation Bar (Bottom Home Indicator Bar) */}
+      <View
+        style={[
+          styles.navigationBar,
+          {
+            borderTopColor: colors.border,
+            backgroundColor: colors.surface,
+            height: currentModule === 'launcher' ? 50 : 20,
+            paddingBottom: currentModule === 'launcher' ? 8 : 2,
+          },
+        ]}
+      >
+        {currentModule === 'launcher' ? (
           <View style={styles.launcherBottomFiller}>
             <Text style={[styles.appTitle, { color: colors.textMuted }]}>LifeOS Launcher</Text>
           </View>
+        ) : (
+          <View style={[styles.iosHomeIndicator, { backgroundColor: colors.textMuted }]} />
         )}
       </View>
+
+      {/* Dropdown Menu Overlay */}
+      {isMenuOpen && (
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={() => setIsMenuOpen(false)}
+        >
+          <View style={[styles.menuDropdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.menuDropdownHeader, { color: colors.textMuted }]}>SWITCH MODULE</Text>
+            {menuItems.map(item => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.menuItem,
+                  currentModule === item.id && { backgroundColor: colors.border }
+                ]}
+                onPress={() => {
+                  setCurrentModule(item.id);
+                  setIsMenuOpen(false);
+                }}
+              >
+                <Text style={styles.menuItemIcon}>{item.icon}</Text>
+                <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
+                {currentModule === item.id && (
+                  <Text style={[styles.menuActiveIndicator, { color: colors.primary }]}>●</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -375,5 +431,71 @@ const styles = StyleSheet.create({
   actionKeyText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  menuToggleButton: {
+    paddingRight: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iosHomeIndicator: {
+    width: 120,
+    height: 4,
+    borderRadius: 2,
+    opacity: 0.3,
+    alignSelf: 'center',
+    marginTop: 4,
+  },
+  menuOverlay: {
+    position: 'absolute',
+    top: 36,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    zIndex: 9999,
+  },
+  menuDropdown: {
+    position: 'absolute',
+    top: 8,
+    left: 12,
+    width: 240,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  menuDropdownHeader: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(128, 128, 128, 0.2)',
+    marginBottom: 8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  menuItemIcon: {
+    fontSize: 16,
+    marginRight: 12,
+    width: 20,
+    textAlign: 'center',
+  },
+  menuItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+  },
+  menuActiveIndicator: {
+    fontSize: 10,
   },
 });
