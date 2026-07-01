@@ -32,6 +32,13 @@ export interface UserProfile {
   updated_at: string;
 }
 
+export interface ExpenseQuota {
+  id: string;
+  category: string;
+  amount: number;
+  month: string;
+}
+
 export interface Asset {
   id: string;
   name: string;
@@ -180,6 +187,7 @@ const KEYS = {
   VACCINATIONS: '@LifeOS:vaccinations',
   MEDICAL_REPORTS: '@LifeOS:medical_reports',
   USER_PROFILE: '@LifeOS:user_profile',
+  EXPENSE_QUOTAS: '@LifeOS:expense_quotas',
 };
 
 async function getLocal<T>(key: string, defaultValue: T): Promise<T> {
@@ -543,6 +551,18 @@ export const database = {
     return this.save<UserProfile>(KEYS.USER_PROFILE, 'user_profiles', profile);
   },
 
+  // Finance: Expense Quotas (Budgets)
+  async getExpenseQuotas(): Promise<ExpenseQuota[]> {
+    return this.getAll<ExpenseQuota>(KEYS.EXPENSE_QUOTAS, 'expense_quotas');
+  },
+  async saveExpenseQuota(quota: ExpenseQuota): Promise<ExpenseQuota> {
+    if (!quota.id) quota.id = generateUUID();
+    return this.save<ExpenseQuota>(KEYS.EXPENSE_QUOTAS, 'expense_quotas', quota);
+  },
+  async deleteExpenseQuota(id: string): Promise<void> {
+    return this.remove(KEYS.EXPENSE_QUOTAS, 'expense_quotas', id);
+  },
+
   // =========================================================================
   // EXPORT, BACKUP & FULL SYNC SYNC ALL DATA
   // =========================================================================
@@ -607,6 +627,7 @@ export const database = {
         { key: KEYS.VACCINATIONS, table: 'vaccinations' },
         { key: KEYS.MEDICAL_REPORTS, table: 'medical_reports' },
         { key: KEYS.USER_PROFILE, table: 'user_profiles' },
+        { key: KEYS.EXPENSE_QUOTAS, table: 'expense_quotas' },
       ];
 
       for (const t of tables) {

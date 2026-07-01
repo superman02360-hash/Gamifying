@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Text as SvgText, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
-import { database, Transaction, Account, Asset, generateUUID } from '../../db/database';
+import { database, Transaction, Account, Asset, generateUUID, ExpenseQuota } from '../../db/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   HomeIcon,
@@ -158,6 +158,11 @@ export default function FinanceModule() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [quotas, setQuotas] = useState<ExpenseQuota[]>([]);
+  const [goalsTab, setGoalsTab] = useState<'savings' | 'budgets'>('savings');
+  const [editQuotaModal, setEditQuotaModal] = useState(false);
+  const [selectedQuotaCategory, setSelectedQuotaCategory] = useState('Food');
+  const [quotaVal, setQuotaVal] = useState('');
 
   // Modals
   const [addTransModal, setAddTransModal] = useState(false);
@@ -267,6 +272,10 @@ export default function FinanceModule() {
       if (profile) {
         setProfileName(profile.name || 'John');
       }
+
+      // Load quotas
+      const storedQuotas = await database.getExpenseQuotas();
+      setQuotas(storedQuotas);
     } catch (e) {
       console.error(e);
     }
@@ -386,6 +395,25 @@ export default function FinanceModule() {
     setAddGoalModal(false);
   };
 
+  const handleSaveQuota = async () => {
+    if (!quotaVal || isNaN(parseFloat(quotaVal))) return;
+
+    const existing = quotas.find(
+      q => q.category.toLowerCase() === selectedQuotaCategory.toLowerCase() && q.month === currentMonth
+    );
+
+    const newQuota: ExpenseQuota = {
+      id: existing?.id || '',
+      category: selectedQuotaCategory,
+      amount: parseFloat(quotaVal),
+      month: currentMonth
+    };
+
+    await database.saveExpenseQuota(newQuota);
+    setEditQuotaModal(false);
+    loadData();
+  };
+
   // Calculations
   const cashBal = accounts.reduce((sum, a) => sum + a.balance, 0);
   const assetVal = assets.reduce((sum, a) => sum + a.current_value, 0);
@@ -397,9 +425,10 @@ export default function FinanceModule() {
   const monthlyIncome = monthTrans.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
   const savingsRate = monthlyIncome > 0 ? ((monthlyIncome - monthlyExpense) / monthlyIncome) * 100 : 0;
 
-  // Safe-To-Spend Daily
+  // Safe-To-Spend Daily (Cash Flow Surplus / Days Remaining)
   const daysLeft = 30 - new Date().getDate() || 1;
-  const safeToSpend = Math.max(0, (cashBal * 0.45) / daysLeft);
+  const monthlySurplus = monthlyIncome - monthlyExpense;
+  const safeToSpend = Math.max(0, monthlySurplus / daysLeft);
 
   // Filtered transactions
   const filteredTransactions = transactions.filter(t => {
@@ -768,33 +797,121 @@ export default function FinanceModule() {
           </View>
         )}
 
-        {/* Tab 3: Goals */}
+        {/* Tab 3: Goals & Budgets */}
         {activeTab === 'goals' && (
           <View>
             <TouchableOpacity onPress={() => setActiveTab('dashboard')} style={styles.backHeaderBtn} activeOpacity={0.7}>
               <Text style={styles.backHeaderBtnText}>← Back to Dashboard</Text>
             </TouchableOpacity>
-            <View style={styles.accountsHeader}>
-              <Text style={styles.sectionHeading}>Active Wealth Targets</Text>
-              <TouchableOpacity style={styles.accountsAddBtn} onPress={() => setAddGoalModal(true)}>
-                <Text style={styles.accountsAddBtnText}>+ New</Text>
+
+            {/* Segmented Control for Targets / Budgets */}
+            <View style={styles.segmentedContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  goalsTab === 'savings' && { backgroundColor: '#111827', borderColor: '#111827' }
+                ]}
+                onPress={() => setGoalsTab('savings')}
+              >
+                <Text style={[styles.segmentText, goalsTab === 'savings' && styles.segmentTextActive]}>Savings Goals</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  goalsTab === 'budgets' && { backgroundColor: '#111827', borderColor: '#111827' }
+                ]}
+                onPress={() => setGoalsTab('budgets')}
+              >
+                <Text style={[styles.segmentText, goalsTab === 'budgets' && styles.segmentTextActive]}>Expense Budgets</Text>
               </TouchableOpacity>
             </View>
 
-            {goals.map(goal => {
-              const progress = Math.min(1, goal.current / goal.target);
-              return (
-                <View key={goal.id} style={styles.goalCard}>
-                  <View style={styles.goalRow}>
-                    <Text style={styles.goalName}>{goal.name}</Text>
-                    <Text style={styles.goalProgressVal}>₹{goal.current} / ₹{goal.target}</Text>
-                  </View>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-                  </View>
+            {/* Option A: Savings Goals List */}
+            {goalsTab === 'savings' && (
+              <View>
+                <View style={styles.accountsHeader}>
+                  <Text style={styles.sectionHeading}>Active Wealth Targets</Text>
+                  <TouchableOpacity style={styles.accountsAddBtn} onPress={() => setAddGoalModal(true)}>
+                    <Text style={styles.accountsAddBtnText}>+ New</Text>
+                  </TouchableOpacity>
                 </View>
-              );
-            })}
+
+                {goals.map(goal => {
+                  const progress = Math.min(1, goal.current / goal.target);
+                  return (
+                    <View key={goal.id} style={styles.goalCard}>
+                      <View style={styles.goalRow}>
+                        <Text style={styles.goalName}>{goal.name}</Text>
+                        <Text style={styles.goalProgressVal}>₹{goal.current} / ₹{goal.target}</Text>
+                      </View>
+                      <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Option B: Expense budgets List */}
+            {goalsTab === 'budgets' && (
+              <View>
+                <View style={styles.accountsHeader}>
+                  <Text style={styles.sectionHeading}>Category Spending Quotas</Text>
+                  <TouchableOpacity style={styles.accountsAddBtn} onPress={() => {
+                    setQuotaVal('');
+                    setSelectedQuotaCategory('Food');
+                    setEditQuotaModal(true);
+                  }}>
+                    <Text style={styles.accountsAddBtnText}>+ Set Quota</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Render categories progress bars */}
+                {['Food', 'Entertainment', 'Subscription', 'Transportation', 'Other'].map(cat => {
+                  const quota = quotas.find(q => q.category.toLowerCase() === cat.toLowerCase() && q.month === currentMonth);
+                  const quotaAmount = quota ? quota.amount : 0;
+                  
+                  const categorySpent = monthTrans
+                    .filter(t => t.category.toLowerCase() === cat.toLowerCase() && t.type === 'expense')
+                    .reduce((sum, t) => sum + t.amount, 0);
+
+                  const progress = quotaAmount > 0 ? Math.min(1, categorySpent / quotaAmount) : 0;
+                  const isExceeded = quotaAmount > 0 && categorySpent > quotaAmount;
+
+                  return (
+                    <View key={cat} style={styles.goalCard}>
+                      <View style={styles.goalRow}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#111827' }}>{cat}</Text>
+                          {isExceeded && (
+                            <View style={{ backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                              <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: 'bold' }}>EXCEEDED</Text>
+                            </View>
+                          )}
+                        </View>
+                        <TouchableOpacity onPress={() => {
+                          setSelectedQuotaCategory(cat);
+                          setQuotaVal(quotaAmount > 0 ? quotaAmount.toString() : '');
+                          setEditQuotaModal(true);
+                        }}>
+                          <Text style={{ fontSize: 11, color: '#00D166', fontWeight: 'bold' }}>
+                            {quotaAmount > 0 ? `₹${categorySpent.toFixed(0)} / ₹${quotaAmount.toFixed(0)} (Edit)` : `₹${categorySpent.toFixed(0)} (Set Limit)`}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                      {quotaAmount > 0 ? (
+                        <View style={[styles.progressTrack, { marginTop: 8 }]}>
+                          <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: isExceeded ? '#EF4444' : '#00D166' }]} />
+                        </View>
+                      ) : (
+                        <Text style={{ fontSize: 10, color: '#94A3B8', fontStyle: 'italic', marginTop: 4 }}>No limit set for this month</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
         )}
 
@@ -1053,6 +1170,45 @@ export default function FinanceModule() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveGoal}>
                 <Text style={styles.modalSaveBtnText}>Create Goal</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal: Edit Quota */}
+      <Modal visible={editQuotaModal} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Set Spending Limit</Text>
+            
+            <Text style={[styles.inputLabel, { marginBottom: 6 }]}>CATEGORY</Text>
+            <View style={[styles.pickerGrid, { marginBottom: 12 }]}>
+              {['Food', 'Entertainment', 'Subscription', 'Transportation', 'Other'].map(cat => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[styles.modalChip, selectedQuotaCategory === cat && styles.modalChipActive]}
+                  onPress={() => setSelectedQuotaCategory(cat)}
+                >
+                  <Text style={[styles.modalChipText, selectedQuotaCategory === cat && styles.modalChipTextActive]}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              placeholder="Monthly Limit (₹)"
+              style={styles.modalInput}
+              keyboardType="numeric"
+              value={quotaVal}
+              onChangeText={setQuotaVal}
+            />
+
+            <View style={styles.modalBtnRow}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setEditQuotaModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveQuota}>
+                <Text style={styles.modalSaveBtnText}>Save Limit</Text>
               </TouchableOpacity>
             </View>
           </View>
