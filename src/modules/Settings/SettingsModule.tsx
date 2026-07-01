@@ -22,18 +22,19 @@ export default function SettingsModule() {
   const { isSyncEnabled, isSyncing, lastSynced, toggleSync, triggerSync } = useSync();
 
   // Form State - Personal Profile
-  const [userName, setUserName] = useState('John');
-  const [dailyLimit, setDailyLimit] = useState('500');
+  const [userName, setUserName] = useState('');
+  const [userAddress, setUserAddress] = useState('');
+  const [userHeight, setUserHeight] = useState('');
 
   // Load profile
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const stored = await AsyncStorage.getItem('@LifeOS:user_profile');
-        if (stored) {
-          const profile = JSON.parse(stored);
-          setUserName(profile.name || 'John');
-          setDailyLimit(profile.dailyLimit || '500');
+        const profile = await database.getUserProfile();
+        if (profile) {
+          setUserName(profile.name || '');
+          setUserAddress(profile.address || '');
+          setUserHeight(profile.height || '');
         }
       } catch (e) {
         console.error(e);
@@ -44,9 +45,15 @@ export default function SettingsModule() {
 
   const handleSaveProfile = async () => {
     try {
-      const profile = { name: userName.trim(), dailyLimit: dailyLimit.trim() };
-      await AsyncStorage.setItem('@LifeOS:user_profile', JSON.stringify(profile));
-      Alert.alert('Success', 'Personal profile updated!');
+      const profile = {
+        id: '',
+        name: userName.trim(),
+        address: userAddress.trim(),
+        height: userHeight.trim(),
+        updated_at: new Date().toISOString()
+      };
+      await database.saveUserProfile(profile);
+      Alert.alert('Success', 'Personal profile updated in database!');
     } catch (e) {
       Alert.alert('Error', 'Failed to save profile.');
     }
@@ -155,12 +162,21 @@ export default function SettingsModule() {
             placeholderTextColor={colors.textMuted}
           />
 
-          <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 8 }]}>DAILY BUDGET LIMIT (₹)</Text>
+          <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 8 }]}>ADDRESS</Text>
           <TextInput
             style={[styles.profileInput, { color: colors.text, borderColor: colors.border }]}
-            value={dailyLimit}
-            onChangeText={setDailyLimit}
-            placeholder="e.g. 500"
+            value={userAddress}
+            onChangeText={setUserAddress}
+            placeholder="e.g. 123 Main St"
+            placeholderTextColor={colors.textMuted}
+          />
+
+          <Text style={[styles.inputLabel, { color: colors.textMuted, marginTop: 8 }]}>HEIGHT (cm)</Text>
+          <TextInput
+            style={[styles.profileInput, { color: colors.text, borderColor: colors.border }]}
+            value={userHeight}
+            onChangeText={setUserHeight}
+            placeholder="e.g. 175"
             placeholderTextColor={colors.textMuted}
             keyboardType="numeric"
           />

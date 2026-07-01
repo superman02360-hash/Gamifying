@@ -235,9 +235,8 @@ export default function FinanceModule() {
       }
 
       // Load user profile
-      const storedProfile = await AsyncStorage.getItem('@LifeOS:user_profile');
-      if (storedProfile) {
-        const profile = JSON.parse(storedProfile);
+      const profile = await database.getUserProfile();
+      if (profile) {
         setProfileName(profile.name || 'John');
       }
     } catch (e) {

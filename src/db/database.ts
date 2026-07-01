@@ -24,6 +24,14 @@ export interface Transaction {
   notes?: string;
 }
 
+export interface UserProfile {
+  id: string;
+  name: string;
+  address: string;
+  height: string;
+  updated_at: string;
+}
+
 export interface Asset {
   id: string;
   name: string;
@@ -171,6 +179,7 @@ const KEYS = {
   DOCTOR_VISITS: '@LifeOS:doctor_visits',
   VACCINATIONS: '@LifeOS:vaccinations',
   MEDICAL_REPORTS: '@LifeOS:medical_reports',
+  USER_PROFILE: '@LifeOS:user_profile',
 };
 
 // Helper: load local storage item
@@ -515,6 +524,21 @@ export const database = {
     return this.remove(KEYS.MEDICAL_REPORTS, 'medical_reports', id);
   },
 
+  // User Profile
+  async getUserProfile(): Promise<UserProfile | null> {
+    const list = await this.getAll<UserProfile>(KEYS.USER_PROFILE, 'user_profiles');
+    return list.length > 0 ? list[0] : null;
+  },
+  async saveUserProfile(profile: UserProfile): Promise<UserProfile> {
+    const list = await this.getAll<UserProfile>(KEYS.USER_PROFILE, 'user_profiles');
+    if (list.length > 0) {
+      profile.id = list[0].id;
+    } else {
+      if (!profile.id) profile.id = generateUUID();
+    }
+    return this.save<UserProfile>(KEYS.USER_PROFILE, 'user_profiles', profile);
+  },
+
   // =========================================================================
   // EXPORT, BACKUP & FULL SYNC SYNC ALL DATA
   // =========================================================================
@@ -578,6 +602,7 @@ export const database = {
         { key: KEYS.DOCTOR_VISITS, table: 'doctor_visits' },
         { key: KEYS.VACCINATIONS, table: 'vaccinations' },
         { key: KEYS.MEDICAL_REPORTS, table: 'medical_reports' },
+        { key: KEYS.USER_PROFILE, table: 'user_profiles' },
       ];
 
       for (const t of tables) {
