@@ -11,6 +11,7 @@ import {
   Dimensions,
   Alert,
   Image,
+  BackHandler,
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Text as SvgText, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
@@ -247,6 +248,19 @@ export default function FinanceModule() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const handleBackButton = () => {
+      if (activeTab !== 'dashboard') {
+        setActiveTab('dashboard');
+        return true;
+      }
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackButton);
+    return () => backHandler.remove();
+  }, [activeTab]);
 
   // Handlers
   const handleAddTransaction = async () => {
@@ -589,6 +603,9 @@ export default function FinanceModule() {
         {/* Tab 2: Accounts & Balances */}
         {activeTab === 'accounts' && (
           <View>
+            <TouchableOpacity onPress={() => setActiveTab('dashboard')} style={styles.backHeaderBtn} activeOpacity={0.7}>
+              <Text style={styles.backHeaderBtnText}>← Back to Dashboard</Text>
+            </TouchableOpacity>
             <View style={styles.accountsHeader}>
               <Text style={styles.sectionHeading}>Wallets & Accounts</Text>
               <TouchableOpacity style={styles.accountsAddBtn} onPress={() => setAddAccModal(true)}>
@@ -628,6 +645,9 @@ export default function FinanceModule() {
         {/* Tab 3: Goals */}
         {activeTab === 'goals' && (
           <View>
+            <TouchableOpacity onPress={() => setActiveTab('dashboard')} style={styles.backHeaderBtn} activeOpacity={0.7}>
+              <Text style={styles.backHeaderBtnText}>← Back to Dashboard</Text>
+            </TouchableOpacity>
             <View style={styles.accountsHeader}>
               <Text style={styles.sectionHeading}>Active Wealth Targets</Text>
               <TouchableOpacity style={styles.accountsAddBtn} onPress={() => setAddGoalModal(true)}>
@@ -654,7 +674,11 @@ export default function FinanceModule() {
 
         {/* Tab 4: Health Score & Achievements */}
         {activeTab === 'health' && (
-          <View style={{ alignItems: 'center' }}>
+          <View style={{ width: '100%' }}>
+            <TouchableOpacity onPress={() => setActiveTab('dashboard')} style={[styles.backHeaderBtn, { alignSelf: 'flex-start' }]} activeOpacity={0.7}>
+              <Text style={styles.backHeaderBtnText}>← Back to Dashboard</Text>
+            </TouchableOpacity>
+            <View style={{ alignItems: 'center', width: '100%' }}>
             <Text style={[styles.sectionHeading, { alignSelf: 'flex-start' }]}>Financial Health Score</Text>
             
             <View style={styles.healthCircleBox}>
@@ -690,6 +714,7 @@ export default function FinanceModule() {
               </View>
             </View>
           </View>
+        </View>
         )}
 
       </ScrollView>
@@ -1382,5 +1407,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#94A3B8',
     marginBottom: 6,
+  },
+  backHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  backHeaderBtnText: {
+    fontSize: 12,
+    color: '#00D166',
+    fontWeight: 'bold',
   },
 });
