@@ -56,14 +56,58 @@ const ClaudeIcon = () => (
   </Svg>
 );
 
+const MoneyIcon = () => (
+  <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="4" width="20" height="16" rx="2" />
+    <Line x1="12" y1="18" x2="12" y2="18" />
+    <Path d="M17 9h.01M17 15h.01" />
+    <Circle cx="12" cy="12" r="3" />
+  </Svg>
+);
+
+const FoodIcon = () => (
+  <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3" />
+  </Svg>
+);
+
+const TransportIcon = () => (
+  <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+    <Circle cx="7" cy="17" r="2" fill="#2563EB" />
+    <Circle cx="17" cy="17" r="2" fill="#2563EB" />
+  </Svg>
+);
+
+const EntertainmentIcon = () => (
+  <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9333EA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+    <Line x1="7" y1="2" x2="7" y2="22" />
+    <Line x1="17" y1="2" x2="17" y2="22" />
+    <Line x1="2" y1="12" x2="22" y2="12" />
+    <Line x1="2" y1="7" x2="7" y2="7" />
+    <Line x1="2" y1="17" x2="7" y2="17" />
+    <Line x1="17" y1="17" x2="22" y2="17" />
+    <Line x1="17" y1="7" x2="22" y2="7" />
+  </Svg>
+);
+
+const UserAvatarSVG = () => (
+  <Svg width="44" height="44" viewBox="0 0 40 40" fill="none">
+    <Circle cx="20" cy="20" r="20" fill="#E2E8F0" />
+    <Circle cx="20" cy="14" r="6" fill="#64748B" />
+    <Path d="M8 30c0-4.5 4.5-8 12-8s12 3.5 12 8" fill="#64748B" />
+  </Svg>
+);
+
 const DefaultTransIcon = (cat: string) => {
-  let emoji = '💰';
-  if (cat === 'Food') emoji = '🍕';
-  if (cat === 'Transportation') emoji = '🚗';
-  if (cat === 'Entertainment') emoji = '🎬';
+  let IconComponent = <MoneyIcon />;
+  if (cat.toLowerCase() === 'food') IconComponent = <FoodIcon />;
+  if (cat.toLowerCase() === 'transportation') IconComponent = <TransportIcon />;
+  if (cat.toLowerCase() === 'entertainment') IconComponent = <EntertainmentIcon />;
   return (
     <View style={styles.defaultIconBox}>
-      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+      {IconComponent}
     </View>
   );
 };
@@ -157,8 +201,8 @@ export default function FinanceModule() {
 
       if (accList.length === 0) {
         const seedAccounts: Account[] = [
-          { id: 'acc-1', name: 'Chase Bank', balance: 5420.00, currency: 'USD' },
-          { id: 'acc-2', name: 'Visa Credit', balance: -850.00, currency: 'USD' }
+          { id: 'acc-1', name: 'Chase Bank', balance: 5420.00, currency: 'INR' },
+          { id: 'acc-2', name: 'Visa Credit', balance: -850.00, currency: 'INR' }
         ];
         for (const a of seedAccounts) {
           await database.saveAccount(a);
@@ -345,8 +389,8 @@ export default function FinanceModule() {
           })}
         </Svg>
         <View style={styles.chartLabels}>
-          <Text style={styles.chartLabelText}>Apr $2,250.23</Text>
-          <Text style={styles.chartLabelText}>May <Text style={{ fontWeight: 'bold', color: '#111827' }}>$4,230.00</Text></Text>
+          <Text style={styles.chartLabelText}>Apr ₹2,250.23</Text>
+          <Text style={styles.chartLabelText}>May <Text style={{ fontWeight: 'bold', color: '#111827' }}>₹4,230.00</Text></Text>
         </View>
       </View>
     );
@@ -365,7 +409,7 @@ export default function FinanceModule() {
           </View>
           {/* Avatar frame */}
           <View style={styles.avatarFrame}>
-            <Text style={styles.avatarEmoji}>👨‍💻</Text>
+            <UserAvatarSVG />
           </View>
         </View>
 
@@ -382,7 +426,7 @@ export default function FinanceModule() {
                       <Text style={styles.increaseChipText}>↗ +12,3%</Text>
                     </View>
                   </View>
-                  <Text style={styles.spendingAmount}>$4,230.00</Text>
+                  <Text style={styles.spendingAmount}>₹4,230.00</Text>
                 </View>
                 <TouchableOpacity onPress={() => setActiveTab('health')}>
                   <Text style={styles.detailsLink}>Details</Text>
@@ -431,7 +475,7 @@ export default function FinanceModule() {
                     />
                   </Svg>
                   <View style={styles.ringOverlay}>
-                    <Text style={styles.ringValue}>${safeToSpend.toFixed(0)}</Text>
+                    <Text style={styles.ringValue}>₹{safeToSpend.toFixed(0)}</Text>
                     <Text style={styles.ringDays}>{daysLeft} days left</Text>
                   </View>
                 </View>
@@ -445,7 +489,7 @@ export default function FinanceModule() {
                   <View style={[styles.cashSumDot, { backgroundColor: '#00D166' }]} />
                   <View>
                     <Text style={styles.cashSumLabel}>Income</Text>
-                    <Text style={styles.cashSumVal}>${monthlyIncome.toFixed(2)}</Text>
+                    <Text style={styles.cashSumVal}>₹{monthlyIncome.toFixed(2)}</Text>
                   </View>
                 </View>
 
@@ -453,7 +497,7 @@ export default function FinanceModule() {
                   <View style={[styles.cashSumDot, { backgroundColor: '#EF4444' }]} />
                   <View>
                     <Text style={styles.cashSumLabel}>Expenses</Text>
-                    <Text style={styles.cashSumVal}>${monthlyExpense.toFixed(2)}</Text>
+                    <Text style={styles.cashSumVal}>₹{monthlyExpense.toFixed(2)}</Text>
                   </View>
                 </View>
 
@@ -517,7 +561,7 @@ export default function FinanceModule() {
                         </View>
                       </View>
                       <Text style={[styles.transAmount, { color: t.type === 'income' ? '#00D166' : '#E11D48' }]}>
-                        {t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}
+                        {t.type === 'income' ? '+' : '-'}₹{t.amount.toFixed(2)}
                       </Text>
                     </View>
                   );
@@ -548,7 +592,7 @@ export default function FinanceModule() {
                   <Text style={styles.accountName}>{acc.name}</Text>
                   <Text style={styles.accountType}>{(acc as any).type?.toUpperCase() || 'BANK'}</Text>
                 </View>
-                <Text style={styles.accountBalance}>${acc.balance.toFixed(2)}</Text>
+                <Text style={styles.accountBalance}>₹{acc.balance.toFixed(2)}</Text>
               </View>
             ))}
 
@@ -556,16 +600,16 @@ export default function FinanceModule() {
             <View style={styles.summaryCard}>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Liquid cash balance</Text>
-                <Text style={styles.summaryValue}>${cashBal.toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>₹{cashBal.toFixed(2)}</Text>
               </View>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Asset valuations</Text>
-                <Text style={styles.summaryValue}>${assetVal.toFixed(2)}</Text>
+                <Text style={styles.summaryValue}>₹{assetVal.toFixed(2)}</Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryItem}>
                 <Text style={[styles.summaryLabel, { fontWeight: 'bold', color: '#111827' }]}>Net Worth valuation</Text>
-                <Text style={[styles.summaryValue, { color: '#00D166', fontWeight: 'bold' }]}>${netWorth.toFixed(2)}</Text>
+                <Text style={[styles.summaryValue, { color: '#00D166', fontWeight: 'bold' }]}>₹{netWorth.toFixed(2)}</Text>
               </View>
             </View>
           </View>
@@ -587,7 +631,7 @@ export default function FinanceModule() {
                 <View key={goal.id} style={styles.goalCard}>
                   <View style={styles.goalRow}>
                     <Text style={styles.goalName}>{goal.name}</Text>
-                    <Text style={styles.goalProgressVal}>${goal.current} / ${goal.target}</Text>
+                    <Text style={styles.goalProgressVal}>₹{goal.current} / ₹{goal.target}</Text>
                   </View>
                   <View style={styles.progressTrack}>
                     <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
@@ -647,7 +691,7 @@ export default function FinanceModule() {
             <Text style={styles.modalTitle}>Log Transaction</Text>
             
             <TextInput
-              placeholder="Amount ($)"
+              placeholder="Amount (₹)"
               style={styles.modalInput}
               keyboardType="numeric"
               value={amount}
@@ -699,7 +743,7 @@ export default function FinanceModule() {
             />
 
             <TextInput
-              placeholder="Opening Balance ($)"
+              placeholder="Opening Balance (₹)"
               style={styles.modalInput}
               keyboardType="numeric"
               value={accBalance}
@@ -743,7 +787,7 @@ export default function FinanceModule() {
             </View>
 
             <TextInput
-              placeholder="Transfer Amount ($)"
+              placeholder="Transfer Amount (₹)"
               style={[styles.modalInput, { marginTop: 16 }]}
               keyboardType="numeric"
               value={transferAmount}
@@ -776,7 +820,7 @@ export default function FinanceModule() {
             />
 
             <TextInput
-              placeholder="Target Amount ($)"
+              placeholder="Target Amount (₹)"
               style={styles.modalInput}
               keyboardType="numeric"
               value={goalTarget}
