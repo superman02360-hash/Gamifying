@@ -10,7 +10,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import Svg, { Path, Rect, Text as SvgText, Line, Defs, LinearGradient } from 'react-native-svg';
+import Svg, { Path, Rect, Text as SvgText, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
 import { database, Transaction, Account, Asset, generateUUID } from '../../db/database';
 
@@ -189,8 +189,8 @@ export default function FinanceModule() {
         <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
           <Defs>
             <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={colors.primary} stopOpacity="0.3" />
-              <stop offset="100%" stopColor={colors.primary} stopOpacity="0.0" />
+              <Stop offset="0%" stopColor={colors.primary} stopOpacity="0.3" />
+              <Stop offset="100%" stopColor={colors.primary} stopOpacity="0.0" />
             </LinearGradient>
           </Defs>
           {/* Grid lines */}

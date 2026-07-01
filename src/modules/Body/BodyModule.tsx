@@ -11,7 +11,7 @@ import {
   Dimensions,
   Image,
 } from 'react-native';
-import Svg, { Path, Rect, Text as SvgText, Line, Defs, LinearGradient } from 'react-native-svg';
+import Svg, { Path, Rect, Text as SvgText, Line, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../../context/ThemeContext';
 import { database, Measurement, Workout, Photo, generateUUID } from '../../db/database';
 
@@ -185,8 +185,8 @@ export default function BodyModule() {
         <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
           <Defs>
             <LinearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={colors.secondary} stopOpacity="0.25" />
-              <stop offset="100%" stopColor={colors.secondary} stopOpacity="0.0" />
+              <Stop offset="0%" stopColor={colors.secondary} stopOpacity="0.25" />
+              <Stop offset="100%" stopColor={colors.secondary} stopOpacity="0.0" />
             </LinearGradient>
           </Defs>
           <Line x1="0" y1={CHART_HEIGHT - 20} x2={CHART_WIDTH} y2={CHART_HEIGHT - 20} stroke={colors.border} strokeWidth="1" />
