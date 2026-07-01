@@ -879,6 +879,34 @@ export default function FinanceModule() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Log Transaction</Text>
             
+            {/* Segmented Control for Transaction Type */}
+            <View style={styles.segmentedContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  transType === 'expense' && { backgroundColor: '#EF4444', borderColor: '#EF4444' }
+                ]}
+                onPress={() => {
+                  setTransType('expense');
+                  setCategory('Food');
+                }}
+              >
+                <Text style={[styles.segmentText, transType === 'expense' && styles.segmentTextActive]}>Expense</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.segmentButton,
+                  transType === 'income' && { backgroundColor: '#00D166', borderColor: '#00D166' }
+                ]}
+                onPress={() => {
+                  setTransType('income');
+                  setCategory('Salary');
+                }}
+              >
+                <Text style={[styles.segmentText, transType === 'income' && styles.segmentTextActive]}>Income</Text>
+              </TouchableOpacity>
+            </View>
+
             <TextInput
               placeholder="Amount (₹)"
               style={styles.modalInput}
@@ -888,14 +916,17 @@ export default function FinanceModule() {
             />
 
             <TextInput
-              placeholder="Merchant / Notes (e.g. Spotify)"
+              placeholder="Merchant / Notes (e.g. Salary / Spotify)"
               style={styles.modalInput}
               value={notes}
               onChangeText={setNotes}
             />
 
             <View style={styles.pickerGrid}>
-              {['Food', 'Entertainment', 'Subscription', 'Transportation'].map(cat => (
+              {(transType === 'income' 
+                ? ['Salary', 'Investment', 'Freelance', 'Other']
+                : ['Food', 'Entertainment', 'Subscription', 'Transportation', 'Other']
+              ).map(cat => (
                 <TouchableOpacity
                   key={cat}
                   style={[styles.modalChip, category === cat && styles.modalChipActive]}
@@ -1691,5 +1722,29 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     fontWeight: '600',
+  },
+  segmentedContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    padding: 2,
+    marginBottom: 16,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  segmentText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  segmentTextActive: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 });
